@@ -1,95 +1,27 @@
-# ![Logo created by @LsylvanusChu](logo_white_35_24.png) FetchWishAPI
+package main
 
-Through the [Wish API](https://merchant.wish.com/documentation/api/v2#order) provided by Wish, get the `JSON` of the order and order details, limit the paging to 50, obtain the information by using the initial data number, and resolve it in the structure, and then save it in the database.
+import (
+	"encoding/json"
+	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/go-xorm/core"
+	"github.com/go-xorm/xorm"
+	"github.com/thinkboy/log4go"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
+)
 
-## Example
+var gLogger log4go.Logger
+var engine *xorm.Engine
+var session *xorm.Session
 
-* Assume your access token is "an_example_access_token" . If you want to get all the orders which still require fulfillment in pages of 100:
-
-	* start = 0
-	* limit = 100
-	* access_token = an_example_access_token
-
-## Example Request
-
-```sh
-> curl "https://merchant.wish.com/api/v2/order/get-fulfill?start=0&limit=100&access_token=an_example_access_token"
-```
-
-## Example Response
-
-```json
-{'code': 0,
- 'data': [{'Order': {'ShippingDetail': {'city': 'New York City',
-                                        'country': 'US',
-                                        'name': 'Guadalupe Smith',
-                                        'phone_number': '5554191609',
-                                        'state': 'California',
-                                        'street_address1': '3317 w 51st Street',
-                                        'zipcode': '60632'},
-                      'last_updated': '2014-01-20T20:20:20',
-                      'order_time': '2014-01-20T20:20:20',
-                      'order_id': '123456789009876543210164',
-                      'order_total': '17.6',
-                      'product_id': '1113fad43deaf71536cb2c74',
-                      'buyer_id': '1234fad43deaf71536cb2c74',
-                      'quantity': '2',
-                      'price':'8',
-                      'cost':u¡¯6.8',
-                      'shipping':'2.35',
-                      'shipping_cost':'2',
-                      'product_name':'Dandelion Necklace',
-                      'product_image_url':'http://d1zog42tnv26ho.cloudfront.net/4fea11fac43bf532f4001419-normal.jpg',
-                      'days_to_fulfill': '2',
-                      'hours_to_fulfill': '49',
-                      'sku': 'Dandelion Necklace',
-                      'state': 'APPROVED',
-                      'transaction_id': '11114026a99e980d4e500269',
-                      'variant_id': '1111fad63deaf71536cb2c76'}},
-           {'Order': {'ShippingDetail': {'city': 'Lake City',
-                                         'country': 'US',
-                                         'name': 'Marko Schroeder',
-                                         'phone_number': '+1 555-399-7785',
-                                         'state': 'NY',
-                                         'street_address1': '20685 W Verona Ave',
-                                         'zipcode': '60046'},
-                       'last_updated': '2014-01-20T20:20:20',
-                       'order_time': '2014-01-20T20:20:20',
-                       'order_id': '1114a7cfb2ec2d42d272b627',
-                       'order_total': '17.6',
-                      'product_id': '1113fad43deaf71536cb2c74',
-                      'buyer_id': '1234fad43deaf71536cb2c74',
-                      'quantity': '2',
-                      'price':'8',
-                      'cost':'6.8',
-                      'shipping':'2.35',
-                      'shipping_cost':'2',
-                      'product_name':'Dandelion Necklace',
-                      'product_image_url':'http://d1zog42tnv26ho.cloudfront.net/4fea11fac43bf532f4001419-normal.jpg',
-                      'days_to_fulfill': '2',
-                      'hours_to_fulfill': '49',
-                      'sku': 'Dandelion Necklace',
-                      'state': 'APPROVED',
-                      'transaction_id': '11114026a99e980d4e500269',
-                      'variant_id': '1111fad63deaf71536cb2c76'}}],
- 'message': '',
- 'paging': {'next': 'https://merchant.wish.com/api/v2/order/get-fulfill?start=100&limit=100&access_token=an_example_access_token'}}
-```
-
-## Begin the demo
-
-We can know the properties of Order and the attributes of the shipment from the API, and first define the structure to store the `JSON` format data that is parsed from the page.
-
-![Logo created by @LsylvanusChu](attr.png)
-
-So we can now write the structural relationships between them based on the `JSON` returned by the page.
-
-![Logo created by @LsylvanusChu](json.png)
-
-Here is the structure I wrote:
-
-```go
-//·µ»ØJson
+//è¿”å›Json
 type Retrieve struct {
 	Message string `json:"message"`
 	Code    int    `json:"code"`
@@ -99,22 +31,18 @@ type Retrieve struct {
 		Previous string `json:"previous"`
 	} `json:"paging"`
 }
-```
 
-Notice that Data here returns an array of I, otherwise it would be wrong. You can see the relationship between Order and ShipDetail by returning `JSON`, and see the following code:
-
-```go
 type Data struct {
 	OrderWithDetail `json:"Order"` //cannot unmarshal object into Go value of type string
 }
 
 type OrderWithDetail struct {
 	Order
-	//ÒòjsonÖĞOrderÓëShippingDetailÓĞÏàÍ¬×Ö¶Îstate£¬Èç¸Ã½á¹¹ÌåÖĞ´æÔÚShippingDetail£¬ÔòOrderÖĞµÄstate»ñÈ¡²»ÁË
+	//å› jsonä¸­Orderä¸ShippingDetailæœ‰ç›¸åŒå­—æ®µstateï¼Œå¦‚è¯¥ç»“æ„ä½“ä¸­å­˜åœ¨ShippingDetailï¼Œåˆ™Orderä¸­çš„stateè·å–ä¸äº†
 	//ShippingDetail
 }
 
-//¶©µ¥ĞÅÏ¢
+//è®¢å•ä¿¡æ¯
 type Order struct {
 	//Sid                          int            `xorm:"autoincr int(11) unique default 0 notnull"`
 	OrderId                      string         `json:"order_id" xorm:"varchar(64) pk notnull"`
@@ -162,7 +90,7 @@ type Order struct {
 	PhoneNumber                  string         `xorm:"varchar(16) null"`
 }
 
-//·¢»õÏêÏ¸
+//å‘è´§è¯¦ç»†
 type ShippingDetail struct {
 	//Vid            int    `xorm:"autoincr int(11) pk notnull"`
 	Name           string `json:"name" xorm:"varchar(32) null"`
@@ -174,56 +102,38 @@ type ShippingDetail struct {
 	Zipcode        string `json:"zipcode" xorm:"varchar(8) pk notnull"`
 	PhoneNumber    string `json:"phone_number" xorm:"varchar(16) null"`
 }
-```
 
-By the way, I connect to the database using [xorm](http://xorm.io/), and of course you can use the [go-sql-driver](https://github.com/go-sql-driver/mysql), Simple install the package to your $GOPATH with the go tool from shell or You can get their library through Goland's Terminal
-
-`xorm`
-
-```sh
-go get github.com/go-xorm/xorm
-```
-
-`go-sql-driver`
-
-```sh
-go get github.com/go-sql-driver/mysql
-```
-
-Make sure [Git is installed](https://git-scm.com/downloads) on your machine and in your system's `PATH`.
-
-Here's the address Url problem, because you need to flip the page dynamically to get the page information, so you set the start count dynamically and recursively call it.
-
-Methods: `fetchOrder(args...)` to parse the `JSON` and store it in the database, with 50 data limits per page, more data needs to be turned over.
-
-```go
-//½Ó¿ÚµØÖ·²ÎÊı
+//æ¥å£åœ°å€å‚æ•°
 type Uri struct {
-	Access_token    string
-	Since           string
-	Limit           string
-	Start           string
-	WishExpressOnly string
+	Access_token string
+	Since        string
+	Limit        string
+	Start        string
 }
-```
 
-```go
-// ´Ó API ÖĞ»ñÈ¡¶©µ¥ĞÅÏ¢(JSON)£¬²¢½âÎö³É struct
-func fetchOrder(retrieve *Retrieve, start string, limit string, count int, wish_express_only string) {
+//é”™è¯¯ä¿¡æ¯è¿”å›
+type ErrorMsg struct {
+	Message string `json:"message"`
+	Code    int    `json:"code"`
+	Data    int    `json:"data"`
+}
+
+// ä» API ä¸­è·å–è®¢å•ä¿¡æ¯(JSON)ï¼Œå¹¶è§£ææˆ struct
+func fetchOrder(retrieve *Retrieve, start string, limit string, count int) {
 	var order_b []byte
 	//var error_b []byte
 
 	uri := new(Uri)
-	//¸öÈËtoken
+	//ä¸ªäººtoken
 	uri.Access_token = "8ddac2fa42794124893947b9ff02e857"
 	uri.Since = "2017-06-01"
 
-	//·­Ò³£¬·µ»ØjsonÊı×éÊıÁ¿ÏŞÖÆ´óĞ¡Îª50
+	//ç¿»é¡µï¼Œè¿”å›jsonæ•°ç»„æ•°é‡é™åˆ¶å¤§å°ä¸º50
 	const page int = 50
 
-	var url = "https://merchant.wish.com/api/v2/order/get-fulfill?start=" + start + "&limit=" + limit + "&since=" + uri.Since + "&wish_express_only=" + wish_express_only + "&access_token=" + uri.Access_token
+	var url = "https://merchant.wish.com/api/v2/order/get-fulfill?start=" + start + "&limit=" + limit + "&since=" + uri.Since + "&access_token=" + uri.Access_token
 
-	gLogger.Info("ÇëÇóµÄURLÎª£º\n", url)
+	gLogger.Info("è¯·æ±‚çš„URLä¸ºï¼š\n", url)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -233,7 +143,7 @@ func fetchOrder(retrieve *Retrieve, start string, limit string, count int, wish_
 	if err != nil {
 		panic(err.Error())
 	}
-	gLogger.Info("»ñÈ¡Ò³Ãæbody")
+	gLogger.Info("è·å–é¡µé¢body")
 
 	retrieve = &Retrieve{}
 	//errorMsg = &ErrorMsg{}
@@ -248,25 +158,25 @@ func fetchOrder(retrieve *Retrieve, start string, limit string, count int, wish_
 
 	// create table
 	t_order := new(Order)
-	//²éÕÒ±íÊÇ·ñ´æÔÚ
+	//æŸ¥æ‰¾è¡¨æ˜¯å¦å­˜åœ¨
 	b, err := engine.IsTableExist(t_order)
 	if !b {
-		//´´½¨±í
+		//åˆ›å»ºè¡¨
 		err := engine.CreateTables(t_order)
 		if err != nil {
-			gLogger.Debug("´´½¨±íÊ§°Ü£¡\n", err.Error())
+			gLogger.Debug("åˆ›å»ºè¡¨å¤±è´¥ï¼\n", err.Error())
 		}
 	} else if err != nil {
-		gLogger.Debug("²éÕÒ±íÊ§°Ü£¡\n", err.Error())
+		gLogger.Debug("æŸ¥æ‰¾è¡¨å¤±è´¥ï¼\n", err.Error())
 	} else {
 		// do nothing //
 		// return
 	}
 
 	data := retrieve.Data
-	//Ã»ÓĞÊı¾İÖ±½Ó·µ»Ø
+	//æ²¡æœ‰æ•°æ®ç›´æ¥è¿”å›
 	if len(data) == 0 {
-		//¹Øµô×ÊÔ´
+		//å…³æ‰èµ„æº
 		deinitAll()
 		return
 	}
@@ -275,32 +185,32 @@ func fetchOrder(retrieve *Retrieve, start string, limit string, count int, wish_
 	var order Order
 	var ship_detail ShippingDetail
 
-	//±éÀúÊı×éµÄdata
+	//éå†æ•°ç»„çš„data
 	for i := 0; i < len(data); i++ {
 		//fmt.Println(data[i])
 		order = data[i].OrderWithDetail.Order
 		ship_detail = data[i].OrderWithDetail.Order.ShippingDetail
 
-		gLogger.Info("¶©µ¥Êı¾İ£º \n", order)
-		gLogger.Info("·¢»õÏêÏ¸£º \n", ship_detail)
-		gLogger.Debug("½âÎöjson¸ñÊ½£¬µ±Ç°¶ÁÈ¡ÊıÎª£º%d ", i)
-		//fmt.Printf("================\torder.State£º%s\t ship.State£º%s\t================\n", order.State, order.ShippingDetail.State)
+		gLogger.Info("è®¢å•æ•°æ®ï¼š \n", order)
+		gLogger.Info("å‘è´§è¯¦ç»†ï¼š \n", ship_detail)
+		gLogger.Debug("è§£æjsonæ ¼å¼ï¼Œå½“å‰è¯»å–æ•°ä¸ºï¼š%d ", i)
+		//fmt.Printf("================\torder.Stateï¼š%s\t ship.Stateï¼š%s\t================\n", order.State, order.ShippingDetail.State)
 
-		//±£´æjsonÊı¾İ
+		//ä¿å­˜jsonæ•°æ®
 		logJSONdata(order, ship_detail, i)
 
-		//±ÜÃâorderµÄÖØ¸´£¬ÏÈ²éÔÙÅĞ¶Ï
+		//é¿å…orderçš„é‡å¤ï¼Œå…ˆæŸ¥å†åˆ¤æ–­
 		_, err := engine.Cols("order_id").Get(&order)
 		//err2 := engine.In("order_id", []string{order.OrderId}).Find(&order)
 		if err != nil {
-			gLogger.Debug("ÒÑ´æÔÚ \n", err.Error())
+			gLogger.Debug("å·²å­˜åœ¨ \n", err.Error())
 		}
 
-		//orderid²»ÖØ¸´£¬²åÈë£¬·ñÔò²»²åÈë
+		//orderidä¸é‡å¤ï¼Œæ’å…¥ï¼Œå¦åˆ™ä¸æ’å…¥
 		if order.OrderId != data[i].OrderWithDetail.Order.OrderId {
-			gLogger.Debug("Êı¾İ¿âÒÑÓĞ¸Ãid£º" + order.OrderId + "µÄ¶©µ¥ \n")
+			gLogger.Debug("æ•°æ®åº“å·²æœ‰è¯¥idï¼š" + order.OrderId + "çš„è®¢å• \n")
 		} else {
-			//Á½¸ö½á¹¹Ìå´æ½øÒ»¸ö±ít_orderÖĞ
+			//ä¸¤ä¸ªç»“æ„ä½“å­˜è¿›ä¸€ä¸ªè¡¨t_orderä¸­
 			order.PhoneNumber = ship_detail.PhoneNumber
 			order.City = ship_detail.City
 			order.DetailState = ship_detail.State
@@ -312,65 +222,47 @@ func fetchOrder(retrieve *Retrieve, start string, limit string, count int, wish_
 
 			affected, err := engine.Insert(order)
 			if err != nil {
-				gLogger.Debug("²åÈë±íÊ§°Ü£¡\n", err.Error())
+				gLogger.Debug("æ’å…¥è¡¨å¤±è´¥ï¼\n", err.Error())
 			}
 			affecttedStr := strconv.FormatInt(affected, 10)
-			gLogger.Info("³É¹¦²åÈët_order " + affecttedStr + " Ìõ¼ÇÂ¼~£¡\n")
+			gLogger.Info("æˆåŠŸæ’å…¥t_order " + affecttedStr + " æ¡è®°å½•~ï¼\n")
 		}
 
 	}
 
-	gLogger.Debug("µ±Ç°Ò³ÃæÊı×é³¤¶È£º %d ÓëÄ¬ÈÏÏŞÖÆ´óĞ¡ %s ÊÇ·ñÏàµÈ£º%t", len(data), limit, len(data) == page)
-	//³¬¹ıÄ¬ÈÏµÄ50ÌõÊı¾İ£¬¿ÉÄÜ»¹ÓĞÊı¾İ£¬Ôò·­Ò³
+	gLogger.Debug("å½“å‰é¡µé¢æ•°ç»„é•¿åº¦ï¼š %d ä¸é»˜è®¤é™åˆ¶å¤§å° %s æ˜¯å¦ç›¸ç­‰ï¼š%t", len(data), limit, len(data) == page)
+	//è¶…è¿‡é»˜è®¤çš„50æ¡æ•°æ®ï¼Œå¯èƒ½è¿˜æœ‰æ•°æ®ï¼Œåˆ™ç¿»é¡µ
 	if len(data) == page {
-		gLogger.Debug("·­Ò³²éÑ¯¡£¡£¡£\n")
+		gLogger.Debug("ç¿»é¡µæŸ¥è¯¢ã€‚ã€‚ã€‚\n")
 		start = strconv.Itoa(page*count + 1)
-		//APIÌá¹©µÄ½Ó¿ÚÖĞ×î´óµÄÏŞÖÆÎª500	Limit can range from 1 to 500 items and the default is 50
+		//APIæä¾›çš„æ¥å£ä¸­æœ€å¤§çš„é™åˆ¶ä¸º500	Limit can range from 1 to 500 items and the default is 50
 		if start == "501" {
-			gLogger.Debug("ÒÑÊÕ¼¯´ï×î´óLIMIT£¨500£©ÏŞÖÆ")
-			//³¬¹ıÏŞÖÆ·µ»Ø£¬¹Øµô×ÊÔ´
+			gLogger.Debug("å·²æ”¶é›†è¾¾æœ€å¤§LIMITï¼ˆ500ï¼‰é™åˆ¶")
+			//è¶…è¿‡é™åˆ¶è¿”å›ï¼Œå…³æ‰èµ„æº
 			deinitAll()
 			return
 		}
 		limit = strconv.Itoa(page)
 		count += 1
-		//µİ¹éµ÷ÓÃ£¬ÆğÊ¼Î»ÖÃÊı¾İ²»Í¬
-		fetchOrder(retrieve, start, limit, count, wish_express_only)
+		//é€’å½’è°ƒç”¨ï¼Œèµ·å§‹ä½ç½®æ•°æ®ä¸åŒ
+		fetchOrder(retrieve, start, limit, count)
 	}
 
-	//Ğ¡ÓÚ50ÏŞÖÆ£¬»ñÈ¡Íê³É¹Øµô×ÊÔ´
+	//å°äº50é™åˆ¶ï¼Œè·å–å®Œæˆå…³æ‰èµ„æº
 	deinitAll()
 }
-```
 
-Each step separately, my main method: `main()` is a single method call, Please see the following:
-
-```go
-//main method
-func main() {
-	initAll()
-
-	fetchOrder(new(Retrieve), "0", "50", 1, "")
-
-	//goÓïÑÔÖĞÓÃlog4goÊä³öĞÅÏ¢Ê±ÓĞbug£ºÖ»Êä³ö²¿·ÖĞÅÏ¢£¬ÉõÖÁÊÇÎŞÈÎºÎÊä³ö
-	time.Sleep(100 * time.Millisecond)
-}
-```
-
-As can be seen from above, there is a method of initializing resources and destroying resources, as follows.
-
-```go
-//³õÊ¼»¯
+//åˆå§‹åŒ–
 func initAll() {
 	gLogger = nil
 
 	initLogger()
 	conn()
 
-	gLogger.Info("³õÊ¼»¯¡£¡£¡£")
+	gLogger.Info("åˆå§‹åŒ–ã€‚ã€‚ã€‚")
 }
 
-//¹Ø±Õ×ÊÔ´
+//å…³é—­èµ„æº
 func deinitAll() {
 	err := session.Commit()
 	if err != nil {
@@ -384,41 +276,31 @@ func deinitAll() {
 		gLogger = nil
 		gLogger.Close()
 	}
-	gLogger.Info("¹ØµôËùÓĞ×ÊÔ´")
+	gLogger.Info("å…³æ‰æ‰€æœ‰èµ„æº")
 }
-```
 
-The log log I'm using here is [logo4go], which is similar to the Java `log4j`, but there are bugs that don't have all the information, which doesn't affect the normal use. Get its library as follows:
-
-```sh
-go get code.google.com/p/log4go
-```
-
-Below is the logging method `initLogger()` for generating logo4go.
-
-```go
-//³õÊ¼»¯logger
+//åˆå§‹åŒ–logger
 func initLogger() {
 	filenameOnly := getCurFileName()
 	logFilename := filenameOnly + ".log"
 
-	//¿ØÖÆÌ¨Êä³ö
+	//æ§åˆ¶å°è¾“å‡º
 	//gLogger.AddFilter("stdout", log4go.INFO, log4go.NewConsoleLogWriter())
 	gLogger = log4go.NewDefaultLogger(log4go.INFO)
 
-	//logÎÄ¼şÊä³ö
+	//logæ–‡ä»¶è¾“å‡º
 	if _, err := os.Stat(logFilename); err == nil {
 		fmt.Printf("found old log file %s, now remove it\n", logFilename)
-		gLogger.Debug("ÒÑÓĞ¾ÉÎÄ¼ş£º %s, ÖØĞÂ´´½¨\n", logFilename)
+		gLogger.Debug("å·²æœ‰æ—§æ–‡ä»¶ï¼š %s, é‡æ–°åˆ›å»º\n", logFilename)
 		os.Remove(logFilename)
 	}
 	gLogger.AddFilter("log", log4go.FINEST, log4go.NewFileLogWriter(logFilename, false))
-	gLogger.Debug("µ±Ç°Ê±¼ä : %s", time.Now().Format("2006-01-02 15:04:05"))
+	gLogger.Debug("å½“å‰æ—¶é—´ : %s", time.Now().Format("2006-01-02 15:04:05"))
 
 	return
 }
 
-// »ñÈ¡µ±Ç°ÎÄ¼şÃû³Æ
+// è·å–å½“å‰æ–‡ä»¶åç§°
 func getCurFileName() string {
 	_, fullFilename, _, _ := runtime.Caller(0)
 	filenameWithSuffix := path.Base(fullFilename)
@@ -426,29 +308,25 @@ func getCurFileName() string {
 	filenameOnly := strings.TrimSuffix(filenameWithSuffix, fileSuffix)
 	return filenameOnly
 }
-```
 
-The following method: `conn()` is to connect the database to the database table and open the transaction.
-
-```go
-//Êı¾İ¿â³õÊ¼»¯
+//æ•°æ®åº“åˆå§‹åŒ–
 func conn() {
-	//´´½¨OrmÒıÇæ
+	//åˆ›å»ºOrmå¼•æ“
 	var err error
 	engine, err = xorm.NewEngine("mysql", "root:chenghai3c@/wish_catch?charset=utf8&parseTime=true")
 	if err != nil {
 		println(err.Error())
 	}
-	gLogger.Info("´´½¨OrmÒıÇæ£¬×¼±¸Á¬½ÓÊı¾İ¿â¡£¡£¡£")
-	//²âÊÔÁ¬½Ó
+	gLogger.Info("åˆ›å»ºOrmå¼•æ“ï¼Œå‡†å¤‡è¿æ¥æ•°æ®åº“ã€‚ã€‚ã€‚")
+	//æµ‹è¯•è¿æ¥
 	errPing := engine.Ping()
 	if errPing != nil {
 		println(errPing.Error())
 	}
-	gLogger.Info("Á¬½ÓÊı¾İ¿â³É¹¦!")
+	gLogger.Info("è¿æ¥æ•°æ®åº“æˆåŠŸ!")
 	// defer engine.Close()
 
-	//µ±Ê¹ÓÃÊÂÎñ´¦ÀíÊ±£¬ĞèÒª´´½¨Session¶ÔÏó¡£ÔÚ½øĞĞÊÂÎï´¦ÀíÊ±£¬¿ÉÒÔ»ìÓÃORM·½·¨ºÍRAW·½·¨
+	//å½“ä½¿ç”¨äº‹åŠ¡å¤„ç†æ—¶ï¼Œéœ€è¦åˆ›å»ºSessionå¯¹è±¡ã€‚åœ¨è¿›è¡Œäº‹ç‰©å¤„ç†æ—¶ï¼Œå¯ä»¥æ··ç”¨ORMæ–¹æ³•å’ŒRAWæ–¹æ³•
 	session = engine.NewSession()
 
 	// add Begin() before any action
@@ -456,42 +334,38 @@ func conn() {
 	if err1 != nil {
 		println(err1.Error())
 	}
-	gLogger.Info("¿ªÆôÊÂÎñ¡£¡£¡£")
+	gLogger.Info("å¼€å¯äº‹åŠ¡ã€‚ã€‚ã€‚")
 
-	//ÈÕÖ¾ÊÇÒ»¸ö½Ó¿Ú£¬Í¨¹ıÉèÖÃÈÕÖ¾£¬¿ÉÒÔÏÔÊ¾SQL£¬¾¯¸æÒÔ¼°´íÎóµÈ£¬Ä¬ÈÏµÄÏÔÊ¾¼¶±ğÎªINFO
+	//æ—¥å¿—æ˜¯ä¸€ä¸ªæ¥å£ï¼Œé€šè¿‡è®¾ç½®æ—¥å¿—ï¼Œå¯ä»¥æ˜¾ç¤ºSQLï¼Œè­¦å‘Šä»¥åŠé”™è¯¯ç­‰ï¼Œé»˜è®¤çš„æ˜¾ç¤ºçº§åˆ«ä¸ºINFO
 	engine.ShowSQL(true)
 	engine.Logger().SetLevel(core.LOG_DEBUG)
-	//ÈÕÖ¾ĞÅÏ¢±£´æ
+	//æ—¥å¿—ä¿¡æ¯ä¿å­˜
 	f, err := os.Create("catch_sql.log")
 	if err != nil {
 		println(err.Error())
 	}
 	engine.SetLogger(xorm.NewSimpleLogger(f))
-	gLogger.Info("´´½¨logÎÄ¼ş£¬±£´æÖ´ĞĞµÄSQLÓï¾ä¡£")
+	gLogger.Info("åˆ›å»ºlogæ–‡ä»¶ï¼Œä¿å­˜æ‰§è¡Œçš„SQLè¯­å¥ã€‚")
 
-	//Á¬½Ó³Ø
-	//×î´ó´ò¿ªÁ¬½ÓÊı
+	//è¿æ¥æ± 
+	//æœ€å¤§æ‰“å¼€è¿æ¥æ•°
 	engine.SetMaxOpenConns(100)
-	//Á¬½Ó³ØµÄ¿ÕÏĞÊı´óĞ¡
+	//è¿æ¥æ± çš„ç©ºé—²æ•°å¤§å°
 	engine.SetMaxIdleConns(20)
 
-	// Ó³Éä¹æÔò
-	// Ä¬ÈÏ¶ÔÓ¦µÄ±íÃû¾Í±ä³ÉÁË t_order ÁË£¬¶øÖ®Ç°Ä¬ÈÏµÄÊÇ order
+	// æ˜ å°„è§„åˆ™
+	// é»˜è®¤å¯¹åº”çš„è¡¨åå°±å˜æˆäº† t_order äº†ï¼Œè€Œä¹‹å‰é»˜è®¤çš„æ˜¯ order
 	tMapper := core.NewPrefixMapper(core.SnakeMapper{}, "t_")
 	engine.SetTableMapper(tMapper)
 
-	//×îºóÒ»¸öÖµµÃ×¢ÒâµÄÊÇÊ±ÇøÎÊÌâ£¬Ä¬ÈÏxorm²ÉÓÃLocalÊ±Çø£¬ËùÒÔÄ¬ÈÏµ÷ÓÃµÄtime.Now()»áÏÈ±»×ª»»³É¶ÔÓ¦µÄÊ±Çø¡£
+	//æœ€åä¸€ä¸ªå€¼å¾—æ³¨æ„çš„æ˜¯æ—¶åŒºé—®é¢˜ï¼Œé»˜è®¤xormé‡‡ç”¨Localæ—¶åŒºï¼Œæ‰€ä»¥é»˜è®¤è°ƒç”¨çš„time.Now()ä¼šå…ˆè¢«è½¬æ¢æˆå¯¹åº”çš„æ—¶åŒºã€‚
 	engine.TZLocation, _ = time.LoadLocation("Asia/Shanghai")
 
 }
-```
 
-You can also put the returned data in the log file as I do, to find the data to check if the data you've got is accurate.
-
-```go
-//±£´æjsonÊı¾İ´æ½ølog
+//ä¿å­˜jsonæ•°æ®å­˜è¿›log
 func logJSONdata(order Order, detail ShippingDetail, i int) {
-	gLogger.Debug("=============================== Data Order [%d] ==============================", i)
+	gLogger.Debug("=============================== Data Order [%d] ===============================", i)
 	gLogger.Debug("Order.order_id\t\t\t\t\t\t\t=%s", order.OrderId)
 	gLogger.Debug("Order.transaction_id\t\t\t\t\t=%s", order.TransactionId)
 	gLogger.Debug("Order.product_id\t\t\t\t\t\t=%s", order.ProductId)
@@ -529,7 +403,7 @@ func logJSONdata(order Order, detail ShippingDetail, i int) {
 	gLogger.Debug("Order.tracking_confirmed_date\t\t\t=%s", order.TrackingConfirmedDate)
 	gLogger.Debug("=============================== Data End [%d] ===============================\n", i)
 
-	gLogger.Debug("=============================== Data Ship [%d] ==============================", i)
+	gLogger.Debug("=============================== Data Ship [%d] ===============================", i)
 	gLogger.Debug("Order.name\t\t\t\t\t\t\t\t=%s", detail.Name)
 	gLogger.Debug("Order.street_address1\t\t\t\t\t=%s", detail.StreetAddress1)
 	gLogger.Debug("Order.street_address2\t\t\t\t\t=%s", detail.StreetAddress2)
@@ -540,29 +414,13 @@ func logJSONdata(order Order, detail ShippingDetail, i int) {
 	gLogger.Debug("Order.phone_number\t\t\t\t\t\t=%s", detail.PhoneNumber)
 	gLogger.Debug("=============================== Data End [%d] ===============================\n", i)
 }
-```
 
-This is the end of the code, and by the way, paste the packages and global variables that you need to import in the go file.
+//main method
+func main() {
+	initAll()
 
-```go
-import (
-	"encoding/json"
-	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/go-xorm/core"
-	"github.com/go-xorm/xorm"
-	"github.com/thinkboy/log4go"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"path"
-	"runtime"
-	"strconv"
-	"strings"
-	"time"
-)
+	fetchOrder(new(Retrieve), "0", "50", 1)
 
-var gLogger log4go.Logger
-var engine *xorm.Engine
-var session *xorm.Session
-```
+	//goè¯­è¨€ä¸­ç”¨log4goè¾“å‡ºä¿¡æ¯æ—¶æœ‰bugï¼šåªè¾“å‡ºéƒ¨åˆ†ä¿¡æ¯ï¼Œç”šè‡³æ˜¯æ— ä»»ä½•è¾“å‡º
+	time.Sleep(100 * time.Millisecond)
+}
