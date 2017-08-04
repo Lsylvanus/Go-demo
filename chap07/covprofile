@@ -1,0 +1,8 @@
+mode: set
+goTest\chap07\basicfunc.go:3.33,4.9 1 1
+goTest\chap07\basicfunc.go:5.2,6.13 1 1
+goTest\chap07\basicfunc.go:7.2,8.13 1 0
+goTest\chap07\basicfunc.go:9.2,10.13 1 0
+goTest\chap07\basicfunc.go:11.2,12.13 1 0
+goTest\chap07\basicfunc.go:13.2,14.21 1 0
+goTest\chap07\basicfunc.go:18.34,20.2 1 1
