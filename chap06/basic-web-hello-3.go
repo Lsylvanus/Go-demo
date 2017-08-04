@@ -1,9 +1,10 @@
 package main
 
 import (
-	"net/http"
 	"fmt"
 	"html/template"
+	"log"
+	"net/http"
 )
 
 func Hello(response http.ResponseWriter, request *http.Request) {
@@ -16,14 +17,17 @@ func Hello(response http.ResponseWriter, request *http.Request) {
 
 	Lsyl := person{Id: 1001, Name: "Lsylvanus", Country: "China"}
 
-	tmpl, err := template.ParseFiles("./userall.tpl","./header.tpl","./center.tpl","./footer.tpl")
+	tmpl, err := template.ParseFiles("./userall.tpl", "./header.tpl", "./center.tpl", "./footer.tpl")
 	if err != nil {
 		fmt.Println("Error happened..")
 	}
-	tmpl.Execute(response, Lsyl)
+	err1 := tmpl.Execute(response, Lsyl)
+	if err1 != nil {
+		panic(err1.Error())
+	}
 }
 
 func main() {
 	http.HandleFunc("/", Hello)
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8874", nil))
 }
