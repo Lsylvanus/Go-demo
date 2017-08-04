@@ -1,3 +1,3 @@
-{{template “header” .}}
-{{template “center” .}}
-{{template “footer” .}}
+{{template "header" .}}
+{{template "center" .}}
+{{template "footer" .}}
