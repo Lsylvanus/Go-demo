@@ -42,7 +42,7 @@ type stockPosition struct {
 }
 
 func (s stockPosition) getValue() float32 {
-	return s.sharePrice * s.count
+	return s.sharePrice *s.count
 }
 
 type f float32
