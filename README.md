@@ -71,3 +71,26 @@ These demos are purposely written in a simple and clear style. You will find no 
 
 * [pic](https://github.com/Lsylvanus/Go-demo/tree/master/pic)
 	* [pic.go](https://github.com/Lsylvanus/Go-demo/tree/master/pic/pic.go)
+	
+## Extras
+
+## Useful links
+
+### tec & fwork
+
+* [Go 语言圣经](https://docs.hacknode.org/gopl-zh/index.html)
+* [go-redis](https://github.com/go-redis/redis)
+* [go-sql-driver](https://github.com/go-sql-driver/mysql)
+* [beego](https://beego.me/docs/intro/)
+* [xorm](http://xorm.io/docs)
+* [go-redis](https://github.com/go-redis/redis)
+* [Go Revel](http://www.gorevel.cn/docs/index.html)
+
+### other sources
+
+* [Go Report Card](https://goreportcard.com/high_scores/)
+* [open projects](http://www.open-open.com/lib/view/open1396063913278.html)
+* [StudyGoland](http://studygolang.com/)
+* [GolandChina](https://www.golangtc.com/)
+
+## License
