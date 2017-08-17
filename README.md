@@ -10,7 +10,7 @@ These demos are purposely written in a simple and clear style. You will find no 
 
  * [chap01](https://github.com/Lsylvanus/Go-demo/tree/master/chap01)
 	* [basic-print.go](https://github.com/Lsylvanus/Go-demo/blob/master/chap01/basic-print.go)
-	* [halloword.go](https://github.com/Lsylvanus/Go-demo/blob/master/chap01/halloword.go)
+	* [halloworld.go](https://github.com/Lsylvanus/Go-demo/blob/master/chap01/halloworld.go)
 * [chap02](https://github.com/Lsylvanus/Go-demo/tree/master/chap02)
 	* [basic-array.go](https://github.com/Lsylvanus/Go-demo/blob/master/chap02/basic-array.go)
 	* [basic-channel.go](https://github.com/Lsylvanus/Go-demo/blob/master/chap02/basic-channel.go)
