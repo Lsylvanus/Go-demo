@@ -13,7 +13,7 @@ import (
 	"os"
 	"strconv"
 	"time"
-	"ERP_1/log"
+	"goTest/log"
 )
 
 var e *xorm.Engine
