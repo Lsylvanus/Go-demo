@@ -13,8 +13,8 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 	"strings"
+	"time"
 )
 
 var e *xorm.Engine
@@ -70,8 +70,22 @@ type Data struct {
 	Message  string
 	Code     int64
 	Method   string
+	Lat      float64
+	Lon      float64
 	Previous string
 	Next     string
+}
+
+type HtmlAttr struct {
+	Author      string
+	Description string
+	Title       string
+	HeadHref    string
+	PostAction  string
+	LabelText   string
+	Placeholder string
+	TextId      string
+	TextName    string
 }
 
 //字节转string
@@ -123,6 +137,7 @@ func conn() *time.Location {
 
 	//时区
 	cst, _ := time.LoadLocation("Asia/Shanghai")
+	e.TZLocation = cst
 	return cst
 }
 
@@ -146,11 +161,13 @@ func create(beanOrTableName interface{}) bool {
 	return true
 }
 
-func message(code int64, method string, message string, previous string, next string) *Data {
+func message(code int64, method string, message string, lon float64, lat float64, previous string, next string) *Data {
 	data := new(Data)
 	data.Code = code
 	data.Method = method
 	data.Message = message
+	data.Lon = lon
+	data.Lat = lat
 	data.Previous = previous
 	data.Next = next
 	return data
@@ -264,7 +281,7 @@ func Save(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if has {
-		data := message(201, "save()", "已有该昵称，请换一个！", "/auth", "")
+		data := message(201, "save()", "已有该昵称，请换一个！", 0, 0, "/auth", "")
 		tmplParse(resp, req, "./auth/failed.tpl", data)
 		d, err := json.Marshal(data)
 		if err != nil {
@@ -284,7 +301,7 @@ func Save(resp http.ResponseWriter, req *http.Request) {
 
 		//email和src都不能为空
 		if email == "" || src == "" {
-			data := message(101, "save()", "src和email不能为空！", "/auth", "")
+			data := message(101, "save()", "src和email不能为空！", 0, 0, "/auth", "")
 			tmplParse(resp, req, "./auth/failed.tpl", data)
 			d, err := json.Marshal(data)
 			if err != nil {
@@ -334,7 +351,7 @@ func Save(resp http.ResponseWriter, req *http.Request) {
 			}
 		} else if secret != "" && info == "" {
 			//非wish用户
-			data := message(301, "save()", "目前只有wish用户用到secret，如不是wish用户，请在info内填写access_token的返回json！", "/auth", "")
+			data := message(301, "save()", "目前只有wish用户用到secret，如不是wish用户，请在info内填写access_token的返回json！", 0, 0, "/auth", "")
 			tmplParse(resp, req, "./auth/failed.tpl", data)
 			d, err := json.Marshal(data)
 			if err != nil {
@@ -361,7 +378,7 @@ func Save(resp http.ResponseWriter, req *http.Request) {
 		affInt := strconv.FormatInt(aff, 10)
 		fmt.Println("insert into t_users :", affInt)
 
-		data := message(100, "save()", "成功录入授权信息！", "/auth", "")
+		data := message(100, "save()", "成功录入授权信息！", 0, 0, "/auth", "")
 		tmplParse(resp, req, "./auth/success.tpl", data)
 		d, err := json.Marshal(data)
 		if err != nil {
@@ -391,11 +408,12 @@ func SaveExpress(resp http.ResponseWriter, req *http.Request) {
 
 	//获取form表单的值
 	com_type := req.PostFormValue("com_type")
-	fmt.Println("快递公司 : ", com_type) //shunfeng
+	fmt.Println("快递公司 : ", com_type) //shunfeng	ems	yunda
 	post_id := req.PostFormValue("post_id")
-	fmt.Println("快递单号 : ", post_id) //687102589887
+	fmt.Println("快递单号 : ", post_id) //687102589887	1182457917532	3840700256014
 
-	url := "http://www.kuaidi100.com/query?type=" + com_type + "&postid=" + post_id
+	url := "http://www.kuaidi100.com/query?type=" + strings.TrimSpace(com_type) + "&postid=" + strings.TrimSpace(post_id)
+	fmt.Println("express url is :", url)
 	r, err := http.Get(url)
 	if err != nil {
 		fmt.Println("http client do request :", err)
@@ -427,7 +445,7 @@ func SaveExpress(resp http.ResponseWriter, req *http.Request) {
 		_, err2 := e.Insert(delivery)
 		if err2 != nil {
 			fmt.Println("insert into delivery :", err2)
-			data := message(201, "SearchExpress()", "记录信息失败！", "/express", "")
+			data := message(201, "insert into delivery with no data.", err2.Error(), 0, 0, "/express", "")
 			tmplParse(resp, req, "./express/failed.tpl", data)
 			return
 		}
@@ -446,7 +464,7 @@ func SaveExpress(resp http.ResponseWriter, req *http.Request) {
 			_, err2 := e.Insert(delivery)
 			if err2 != nil {
 				fmt.Println("insert into delivery :", err2)
-				data := message(201, "SearchExpress()", "记录信息失败！", "/express", "")
+				data := message(201, "insert into delivery.", err2.Error(), 0, 0, "/express", "")
 				tmplParse(resp, req, "./express/failed.tpl", data)
 				return
 			}
@@ -473,15 +491,16 @@ func SaveExpress(resp http.ResponseWriter, req *http.Request) {
 			_, err1 := e.Insert(express)
 			if err1 != nil {
 				fmt.Println("insert into express :", err1)
-				data := message(202, "SearchExpress()", "记录信息失败！", "/express", "")
+				data := message(202, "insert into express.", err1.Error(), 0, 0, "/express", "")
 				tmplParse(resp, req, "./express/failed.tpl", data)
 				return
 			}
 		}
 	}
 
-	data := message(100, "SearchExpress()", "记录信息成功！", "/express", "")
+	data := message(100, "Successful!", "记录信息成功！", 0, 0, "/express", "")
 	tmplParse(resp, req, "./express/success.tpl", data)
+
 	return
 }
 
@@ -494,6 +513,10 @@ func LocInfo(resp http.ResponseWriter, req *http.Request) {
 	if err1 != nil {
 		fmt.Println("execute data :", err1)
 	}
+}
+
+func ShowLoc(resp http.ResponseWriter, req *http.Request) {
+
 }
 
 func SaveLoc(resp http.ResponseWriter, req *http.Request) {
@@ -537,7 +560,7 @@ func SaveLoc(resp http.ResponseWriter, req *http.Request) {
 	_, err8 := e.Insert(loc)
 	if err8 != nil {
 		fmt.Println("insert into loc :", err)
-		d := message(201, "SaveLoc()", "记录信息失败！", "/loc", "")
+		d := message(201, "insert into loc.", err.Error(), 0, 0, "/loc", "")
 		tmplParse(resp, req, "./loc/failed.tpl", d)
 		return
 	}
@@ -549,7 +572,7 @@ func SaveLoc(resp http.ResponseWriter, req *http.Request) {
 	_, err3 := e.Insert(seaArea)
 	if err3 != nil {
 		fmt.Println("insert into sea_area :", err)
-		d := message(202, "SaveLoc()", "记录信息失败！", "/loc", "")
+		d := message(202, "insert into sea_list.", err.Error(), 0, 0, "/loc", "")
 		tmplParse(resp, req, "./loc/failed.tpl", d)
 		return
 	}
@@ -570,7 +593,7 @@ func SaveLoc(resp http.ResponseWriter, req *http.Request) {
 		_, err4 := e.Insert(crossList)
 		if err4 != nil {
 			fmt.Println("insert into cross_list :", err4)
-			d := message(203, "SaveLoc()", "记录信息失败！", "/loc", "")
+			d := message(203, "insert into cross_list.", err4.Error(), 0, 0, "/loc", "")
 			tmplParse(resp, req, "./loc/failed.tpl", d)
 			return
 		}
@@ -591,7 +614,7 @@ func SaveLoc(resp http.ResponseWriter, req *http.Request) {
 		_, err5 := e.Insert(roadList)
 		if err5 != nil {
 			fmt.Println("insert into road_list :", err5)
-			d := message(204, "SaveLoc()", "记录信息失败！", "/loc", "")
+			d := message(204, "insert into road_list.", err5.Error(), 0, 0, "/loc", "")
 			tmplParse(resp, req, "./loc/failed.tpl", d)
 			return
 		}
@@ -615,7 +638,7 @@ func SaveLoc(resp http.ResponseWriter, req *http.Request) {
 		_, err6 := e.Insert(poiList)
 		if err6 != nil {
 			fmt.Println("insert into poi_list :", err6)
-			d := message(205, "SaveLoc()", "记录信息失败！", "/loc", "")
+			d := message(205, "insert into poi_list.", err6.Error(), 0, 0, "/loc", "")
 			tmplParse(resp, req, "./loc/failed.tpl", d)
 			return
 		}
@@ -629,17 +652,16 @@ func SaveLoc(resp http.ResponseWriter, req *http.Request) {
 			_, err7 := e.Insert(entrances)
 			if err7 != nil {
 				fmt.Println("insert into entrances :", err7)
-				d := message(206, "SaveLoc()", "记录信息失败！", "/loc", "")
+				d := message(206, "insert into entrances.", err7.Error(), 0, 0, "/loc", "")
 				tmplParse(resp, req, "./loc/failed.tpl", d)
 				return
 			}
 		}
 	}
 
-	d := message(100, "SaveLoc()", "记录信息成功！", "/loc", "")
+	d := message(100, "Successful!", "记录信息成功！", gc.Lon, gc.Lat, "/loc", "")
 	tmplParse(resp, req, "./loc/success.tpl", d)
 	return
-
 }
 
 func ZoneMusicInfo(resp http.ResponseWriter, req *http.Request) {
@@ -667,10 +689,8 @@ func SaveQZoneMusic(resp http.ResponseWriter, req *http.Request) {
 	fmt.Println("get qzone music url :", url)
 	body := getBody(url)
 
-	str := strings.Replace(string(body), "jsonCallback(", "{", -1)
-	bodyStr := strings.Replace(str, "})", "}", -1)
-	body = []byte(bodyStr)
-
+	data, _ := ParseUnformattedJson(body)
+	fmt.Println("data is :", data)
 }
 
 func WeatherInfo(resp http.ResponseWriter, req *http.Request) {
@@ -694,7 +714,7 @@ func SaveWeatherInfo(resp http.ResponseWriter, req *http.Request) {
 	city := req.PostFormValue("city")
 	fmt.Println("city : ", city)
 
-	url := "http://www.sojson.com/open/api/weather/json.shtml?city=" + city
+	url := "http://www.sojson.com/open/api/weather/json.shtml?city=" + strings.TrimSpace(city)
 	fmt.Println("get weather url :", url)
 	body := getBody(url)
 
@@ -714,7 +734,7 @@ func SaveWeatherInfo(resp http.ResponseWriter, req *http.Request) {
 	_, err3 := e.Insert(weather)
 	if err3 != nil {
 		fmt.Println("insert into weather :", err3)
-		d := message(201, "SaveWeather()", "记录信息失败！", "/weather", "")
+		d := message(201, "insert into weather.", err3.Error(), 0, 0, "/weather", "")
 		tmplParse(resp, req, "./weather/failed.tpl", d)
 		return
 	}
@@ -734,7 +754,7 @@ func SaveWeatherInfo(resp http.ResponseWriter, req *http.Request) {
 	_, err4 := e.Insert(yesterday)
 	if err4 != nil {
 		fmt.Println("insert into yesterday :", err4)
-		d := message(202, "SaveWeather()", "记录信息失败！", "/weather", "")
+		d := message(202, "insert into yesterday.", err4.Error(), 0, 0, "/weather", "")
 		tmplParse(resp, req, "./weather/failed.tpl", d)
 		return
 	}
@@ -755,13 +775,263 @@ func SaveWeatherInfo(resp http.ResponseWriter, req *http.Request) {
 		_, err4 := e.Insert(forecast)
 		if err4 != nil {
 			fmt.Println("insert into forecast :", err4)
-			d := message(203, "SaveWeather()", "记录信息失败！", "/weather", "")
+			d := message(203, "insert into forecast.", err4.Error(), 0, 0, "/weather", "")
 			tmplParse(resp, req, "./weather/failed.tpl", d)
 			return
 		}
 	}
-	d := message(100, "SaveWeather()", "记录信息成功！", "/weather", "")
+	d := message(100, "Successful!", "记录信息成功！", 0, 0, "/weather", "")
 	tmplParse(resp, req, "./weather/success.tpl", d)
+	return
+}
+
+func MusicInfo(resp http.ResponseWriter, req *http.Request) {
+	tmpl, err := template.ParseFiles("./music/music.tpl")
+	if err != nil {
+		fmt.Println("parseFile err :", err)
+	}
+	err1 := tmpl.Execute(resp, nil)
+	if err1 != nil {
+		fmt.Println("execute data :", err1)
+	}
+}
+
+func SaveMusicInfo(resp http.ResponseWriter, req *http.Request) {
+	err := req.ParseForm()
+	if err != nil {
+		fmt.Println("parse form :", err)
+	}
+
+	//获取form表单的值
+	keyword := req.PostFormValue("keyword")
+	fmt.Println("keyword : ", keyword)
+
+	url := "http://sug.music.baidu.com/info/suggestion?word=" + keyword + "&version=2&from=0"
+	data := getBody(url)
+
+	songsData := new(db.SearchMusic)
+	err1 := json.Unmarshal(data, songsData)
+	if err1 != nil {
+		fmt.Println("json unmarshal songs data :", err1)
+		return
+	}
+
+	//连接数据库
+	cst := conn()
+	fmt.Println("now is :", time.Now().In(cst))
+
+	songs := songsData.Data.Songs
+	artists := songsData.Data.Artist
+	albums := songsData.Data.Album
+	for _, song := range songs {
+		sg := new(db.Song)
+		has, err := e.Where("songid =?", song.Songid).Get(sg)
+		if err != nil {
+			fmt.Println("select from song :", err)
+			return
+		}
+		if !has {
+			s := new(db.Song)
+			s.Info = song.Info
+			s.Weight = song.Weight
+			s.Artistname = song.Artistname
+			s.BitrateFee = song.BitrateFee
+			s.EncryptedSongid = song.EncryptedSongid
+			s.HasMv = song.HasMv
+			s.ResourceProvider = song.ResourceProvider
+			s.ResourceTypeExt = song.ResourceTypeExt
+			s.Songid = song.Songid
+			s.Songname = song.Songname
+			s.YyrArtist = song.YyrArtist
+
+			_, err := e.Insert(s)
+			if err != nil {
+				fmt.Println("insert into song :", err)
+				d := message(201, "insert into song.", err.Error(), 0, 0, "/music", "")
+				tmplParse(resp, req, "./music/failed.tpl", d)
+				return
+			}
+		}
+	}
+
+	for _, artist := range artists {
+		ar := new(db.Artist)
+		has, err := e.Where("artistid =?", artist.Artistid).Get(ar)
+		if err != nil {
+			fmt.Println("select from artist :", err)
+			return
+		}
+		if !has {
+			a := new(db.Artist)
+			a.YyrArtist = artist.YyrArtist
+			a.Artistname = artist.Artistname
+			a.Weight = artist.Weight
+			a.Artistid = artist.Artistid
+			a.Artistpic = artist.Artistpic
+			_, err := e.Insert(a)
+			if err != nil {
+				fmt.Println("insert into artist :", err)
+				d := message(202, "insert into artist.", err.Error(), 0, 0, "/music", "")
+				tmplParse(resp, req, "./music/failed.tpl", d)
+				return
+			}
+		}
+	}
+
+	for _, album := range albums {
+		am := new(db.Album)
+		has, err := e.Where("albumid =?", album.Albumid).Get(am)
+		if err != nil {
+			fmt.Println("select from album :", err)
+			return
+		}
+		if !has {
+			al := new(db.Album)
+			al.Artistpic = album.Artistpic
+			al.Weight = album.Weight
+			al.Artistname = album.Artistname
+			al.ResourceTypeExt = album.ResourceTypeExt
+			al.Albumid = album.Albumid
+			al.Albumname = album.Albumname
+			_, err := e.Insert(al)
+			if err != nil {
+				fmt.Println("insert into album :", err)
+				d := message(203, "insert into album.", err.Error(), 0, 0, "/music", "")
+				tmplParse(resp, req, "./music/failed.tpl", d)
+				return
+			}
+		}
+	}
+	d := message(200, "insert into table successful.", "记录信息成功！", 0, 0, "/music", "")
+	tmplParse(resp, req, "./music/success.tpl", d)
+	return
+}
+
+// 百度视听返回的json格式不确定，字段类型有时是int，有时是string
+// 用interface{}来代替结构体
+// 只拿确定类型的数据(interface nil not string)
+// todo: 还是有问题，会卡住跑不下去。第一次跑没问题，第二次就卡住，也不抛出错误。重新运行也不行
+func SaveDownLink(resp http.ResponseWriter, req *http.Request) {
+
+	/*song := new(db.Song)
+	rows, err := e.Count(song)
+	if err != nil {
+		fmt.Println("select count(1) from song :", err)
+		return
+	}*/
+	songIds := make([]db.Song, 0)
+	err2 := e.SQL("SELECT * FROM song where songid not in (SELECT song_id FROM song_list)").Find(&songIds)
+	if err2 != nil {
+		fmt.Println("select songid from song :", err2)
+		return
+	}
+	/*sql := "SELECT songid FROM song where songid not in (SELECT DISTINCT song_id FROM song_list)"
+	songIdsList, err := e.Query(sql)
+	if err != nil {
+		fmt.Println("select distinct from song and song_list :", err)
+		return
+	}*/
+
+	for _, song := range songIds {
+		fmt.Println("cur id is :", song.Songid)
+		sg := new(db.SongList)
+		has, err := e.Where("song_id =?", song.Songid).Get(sg)
+		if err != nil {
+			fmt.Println("select from song_list :", err)
+			return
+		}
+		if !has {
+			linkUrl := "http://music.baidu.com/data/music/fmlink?songIds=" + song.Songid + "&type=flac"
+			fmt.Println("downlink url is :", linkUrl)
+			dataLink := getBody(linkUrl)
+			// todo：输出完link就卡住了
+			/*downs := new(db.DownLink)
+			err := json.Unmarshal(dataLink, downs)
+			if err != nil {
+				fmt.Println("unmarshal downs :", err)
+				return
+			}*/
+			var dat map[string]interface{}
+			err = json.Unmarshal(dataLink, &dat)
+			if err != nil {
+				fmt.Println("unmarshal interface :", err)
+				return
+			}
+
+			songList := dat["data"].(map[string]interface{})["songList"].([]interface{})[0]
+
+			list := new(db.SongList)
+
+			album := new(db.Album)
+			if songList.(map[string]interface{})["albumName"] != nil {
+				b, err := e.Where("albumname =?", songList.(map[string]interface{})["albumName"].(string)).Get(album)
+				if err != nil {
+					fmt.Println("select from album where albumname :", err)
+					return
+				}
+				if b {
+					list.AlbumId = album.Albumid
+					list.AlbumName = album.Albumname
+				} else {
+					list.ArtistId = ""
+					list.ArtistName = ""
+				}
+			}
+
+			list.SongId = song.Songid
+			list.SongName = song.Songname
+
+
+			artist := new(db.Artist)
+			c, err := e.Where("artistname =?", songList.(map[string]interface{})["artistName"].(string)).Get(artist)
+			if err != nil {
+				fmt.Println("select from artist where artistname :", err)
+				return
+			}
+			if c {
+				list.ArtistId = songList.(map[string]interface{})["artistId"].(string)
+			} else {
+				list.ArtistId = ""
+			}
+			list.ArtistName = songList.(map[string]interface{})["artistName"].(string)
+
+			list.Time = songList.(map[string]interface{})["time"].(float64)
+			list.CopyType = songList.(map[string]interface{})["copyType"].(float64)
+			list.LinkCode = songList.(map[string]interface{})["linkCode"].(float64)
+
+			list.QueryId = songList.(map[string]interface{})["queryId"].(string)
+			list.Version = songList.(map[string]interface{})["version"].(string)
+			list.Format = songList.(map[string]interface{})["format"].(string)
+			list.RelateStatus = songList.(map[string]interface{})["relateStatus"].(string)
+			list.LrcLink = songList.(map[string]interface{})["lrcLink"].(string)
+			list.ShowLink = songList.(map[string]interface{})["showLink"].(string)
+			list.SongLink = songList.(map[string]interface{})["songLink"].(string)
+			list.Source = songList.(map[string]interface{})["source"].(string)
+			list.ResourceType = songList.(map[string]interface{})["resourceType"].(string)
+
+			if songList.(map[string]interface{})["songPicBig"] != nil {
+				list.SongPicBig = songList.(map[string]interface{})["songPicBig"].(string)
+			}
+			if songList.(map[string]interface{})["songPicRadio"] != nil {
+				list.SongPicRadio = songList.(map[string]interface{})["songPicRadio"].(string)
+			}
+			if songList.(map[string]interface{})["songPicSmall"] != nil {
+				list.SongPicSmall = songList.(map[string]interface{})["songPicSmall"].(string)
+			}
+
+			_, err1 := e.Insert(list)
+			if err1 != nil {
+				fmt.Println("insert into list :", err1)
+				d := message(204, "insert into song_list.", err.Error(), 0, 0, "/music", "")
+				tmplParse(resp, req, "./music/failed.tpl", d)
+				return
+			}
+			fmt.Println("insert finished...")
+		}
+	}
+	time.Sleep(time.Second * 3)
+	d := message(200, "insert into song_list successful.", "记录信息成功！", 0, 0, "/music", "")
+	tmplParse(resp, req, "./music/success.tpl", d)
 	return
 }
 
@@ -780,6 +1050,25 @@ func getBody(url string) []byte {
 	return body
 }
 
+func ParseUnformattedJson(body []byte) (map[string]interface{}, error) {
+	var dat map[string]interface{}
+	str1 := strings.Replace(string(body), "jsonCallback({", "{", -1)
+	str2 := strings.Replace(str1, "})", "}", -1)
+	newbody := []byte(str2)
+
+	arr := strings.Split(str2, ",")
+	for k, v := range arr {
+		fmt.Printf("key is :%v, value is :%v\n", k, v)
+	}
+
+	err := json.Unmarshal(newbody, &dat)
+	if err != nil {
+		fmt.Println("unmarshal qzone :", err)
+		return nil, err
+	}
+	return dat, nil
+}
+
 func main() {
 	http.HandleFunc("/", Index)
 	http.HandleFunc("/auth", AuthInfo)
@@ -788,10 +1077,14 @@ func main() {
 	http.HandleFunc("/express", ExpressInfo)
 	http.HandleFunc("/express/save", SaveExpress)
 	http.HandleFunc("/loc", LocInfo)
+	http.HandleFunc("/loc/show", ShowLoc)
 	http.HandleFunc("/loc/save", SaveLoc)
 	http.HandleFunc("/qzone", ZoneMusicInfo)
 	http.HandleFunc("/qzone/music/save", SaveQZoneMusic)
 	http.HandleFunc("/weather", WeatherInfo)
 	http.HandleFunc("/weather/save", SaveWeatherInfo)
-	log.Fatal(http.ListenAndServe("192.168.10.197:8888", nil))
+	http.HandleFunc("/music", MusicInfo)
+	http.HandleFunc("/music/search", SaveMusicInfo)
+	http.HandleFunc("/music/link/save", SaveDownLink)
+	log.Fatal(http.ListenAndServe("192.168.10.197:8098", nil))
 }
