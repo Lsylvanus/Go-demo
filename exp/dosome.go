@@ -16,6 +16,7 @@ import (
 )
 
 var start string = "0"
+var typeName string = ""
 
 const (
 	acc_key = "b637d49acf7c9644fc7d39d11e894fee"
@@ -573,9 +574,17 @@ func GetBody(p Param) ([]byte, string, error) {
 		url = "https://way.jd.com/jisuapi/channel?appkey=" + acc_key
 	} else if p.news_s != "" {
 		url = "https://way.jd.com/jisuapi/get?channel="+p.news_s+"&num="+strconv.Itoa(num)+"&start="+start+"&appkey=" + acc_key
-		sInt, _ := strconv.Atoi(start)
-		sInt += 5
-		start = strconv.Itoa(sInt)
+		if typeName != "" {
+			if typeName == p.news_s {
+				sInt, _ := strconv.Atoi(start)
+				sInt += 5
+				start = strconv.Itoa(sInt)
+			} else {
+				typeName = p.news_s
+			}
+		} else {
+			typeName = p.news_s
+		}
 	}
 	r, err := http.Get(url)
 	if err != nil {
