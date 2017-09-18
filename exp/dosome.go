@@ -4,24 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
+	"path"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
-	"path/filepath"
-	"runtime"
-	"path"
-	"log"
 )
 
 var start string = "0"
 var typeName string = ""
 
 const (
-	acc_key = "b637d49acf7c9644fc7d39d11e894fee"
-	num     = 5
-	filename= "out.txt"
+	acc_key  = "b637d49acf7c9644fc7d39d11e894fee"
+	num      = 5
+	filename = "out.txt"
 )
 
 type Deli struct {
@@ -224,42 +224,42 @@ type Forecast struct {
 }
 
 type NewsData struct {
-	Code   string    `json:"code"`
-	Charge bool      `json:"charge"`
-	Msg    string    `json:"msg"`
+	Code   string     `json:"code"`
+	Charge bool       `json:"charge"`
+	Msg    string     `json:"msg"`
 	Result NewsResult `json:"result"`
 }
 type NewsResult struct {
-	Msg string `json:"msg"`
-	ReS []string `json:"result"`
-	Status string`json:"status"`
+	Msg    string   `json:"msg"`
+	ReS    []string `json:"result"`
+	Status string   `json:"status"`
 }
 
 type NewsListData struct {
-	Code   string    `json:"code"`
-	Charge bool      `json:"charge"`
-	Msg    string    `json:"msg"`
+	Code   string         `json:"code"`
+	Charge bool           `json:"charge"`
+	Msg    string         `json:"msg"`
 	Result NewsListResult `json:"result"`
 }
 type NewsListResult struct {
-	Msg string `json:"msg"`
-	ReS NewsList `json:"result"`
-	Status string`json:"status"`
+	Msg    string   `json:"msg"`
+	ReS    NewsList `json:"result"`
+	Status string   `json:"status"`
 }
 type NewsList struct {
-	Num string `json:"num"`
-	Channel string `json:"channel"`
+	Num     string    `json:"num"`
+	Channel string    `json:"channel"`
 	NewList []NewList `json:"list"`
 }
 type NewList struct {
-	Src string `json:"src"`
-	WebUrl string `json:"weburl"`
-	Time string `json:"time"`
-	Pic string `json:"pic"`
-	Title string `json:"title"`
+	Src      string `json:"src"`
+	WebUrl   string `json:"weburl"`
+	Time     string `json:"time"`
+	Pic      string `json:"pic"`
+	Title    string `json:"title"`
 	Category string `json:"category"`
-	Content string `json:"content"`
-	Url string `json:"url"`
+	Content  string `json:"content"`
+	Url      string `json:"url"`
 }
 
 type AccData struct {
@@ -362,7 +362,8 @@ func MFrm() {
 	说明：
 		输入中文出现问题，请输入数字或英文。2017-09-08
 		尽量请不要访问 2 和 3 接口，谢谢合作！2017-09-11
-		天气接口已更新，可正常使用。3 号接口不要访问。2017-09-13
+		2 号天气接口已更新，可正常使用。3 号接口不要访问。2017-09-13
+		(exit 也可退出)
 	----------
 	`)
 	num := ""
@@ -409,7 +410,7 @@ func PFrm(str, num string) {
 		phone := ScanPhone()
 		p = Param{phone: phone, shouji: phone}
 	case "5":
-		p = Param{news:"new"}
+		p = Param{news: "new"}
 	}
 	body, s, _ := GetBody(p)
 	UnmarJson(body, num, s)
@@ -444,7 +445,7 @@ func PTypeOfNews(res []string) map[int]string {
 	c := 1
 	fmt.Printf("----------\n\t请选择新闻类型：\n")
 	for k := 0; k < len(res); k++ {
-		if k == 4 * c {
+		if k == 4*c {
 			fmt.Printf("\t%v. %v\t\n", k, res[k])
 			c++
 		} else {
@@ -471,7 +472,7 @@ func ScanNews(res map[int]string) string {
 		}
 	}
 	nn := ""
-	for i := 0; i < len(res); i ++ {
+	for i := 0; i < len(res); i++ {
 		if n == strconv.Itoa(i) {
 			nn = res[i]
 			break
@@ -573,7 +574,7 @@ func GetBody(p Param) ([]byte, string, error) {
 	} else if p.news != "" {
 		url = "https://way.jd.com/jisuapi/channel?appkey=" + acc_key
 	} else if p.news_s != "" {
-		url = "https://way.jd.com/jisuapi/get?channel="+p.news_s+"&num="+strconv.Itoa(num)+"&start="+start+"&appkey=" + acc_key
+		url = "https://way.jd.com/jisuapi/get?channel=" + p.news_s + "&num=" + strconv.Itoa(num) + "&start=" + start + "&appkey=" + acc_key
 		if typeName != "" {
 			if typeName == p.news_s {
 				sInt, _ := strconv.Atoi(start)
@@ -604,7 +605,7 @@ func UnmarJson(body []byte, num, str string) {
 	switch num {
 	case "1":
 		logFile := WriteInit()
-		logger := log.New(logFile,"\r\n", log.Ldate | log.Ltime | log.Lshortfile)
+		logger := log.New(logFile, "\r\n", log.Ldate|log.Ltime|log.Lshortfile)
 		defer logFile.Close()
 		deli := new(Deli)
 		err := json.Unmarshal(body, deli)
@@ -650,7 +651,7 @@ func UnmarJson(body []byte, num, str string) {
 			fmt.Println("")
 		}*/
 		logFile := WriteInit()
-		logger := log.New(logFile,"\r\n", log.Ldate | log.Ltime | log.Lshortfile)
+		logger := log.New(logFile, "\r\n", log.Ldate|log.Ltime|log.Lshortfile)
 		defer logFile.Close()
 		weback := new(WeBack)
 		err := json.Unmarshal(body, weback)
@@ -745,7 +746,7 @@ func UnmarJson(body []byte, num, str string) {
 
 	case "3":
 		logFile := WriteInit()
-		logger := log.New(logFile,"\r\n", log.Ldate | log.Ltime | log.Lshortfile)
+		logger := log.New(logFile, "\r\n", log.Ldate|log.Ltime|log.Lshortfile)
 		defer logFile.Close()
 		acc := new(AccData)
 		err := json.Unmarshal(body, acc)
@@ -801,7 +802,7 @@ func UnmarJson(body []byte, num, str string) {
 		}
 	case "4":
 		logFile := WriteInit()
-		logger := log.New(logFile,"\r\n", log.Ldate | log.Ltime | log.Lshortfile)
+		logger := log.New(logFile, "\r\n", log.Ldate|log.Ltime|log.Lshortfile)
 		defer logFile.Close()
 		pd := new(PhoneData)
 		err := json.Unmarshal(body, pd)
@@ -858,7 +859,7 @@ func UnmarJson(body []byte, num, str string) {
 		}
 	case "5":
 		logFile := WriteInit()
-		logger := log.New(logFile,"\r\n", log.Ldate | log.Ltime | log.Lshortfile)
+		logger := log.New(logFile, "\r\n", log.Ldate|log.Ltime|log.Lshortfile)
 		defer logFile.Close()
 		n := new(NewsData)
 		err := json.Unmarshal(body, n)
@@ -872,7 +873,7 @@ func UnmarJson(body []byte, num, str string) {
 			ss := PTypeOfNews(res)
 			s := ScanNews(ss)
 
-			b, _, _ := GetBody(Param{news_s:s})
+			b, _, _ := GetBody(Param{news_s: s})
 			nlist := new(NewsListData)
 			err1 := json.Unmarshal(b, nlist)
 			if err1 != nil {
@@ -882,7 +883,7 @@ func UnmarJson(body []byte, num, str string) {
 				ErrPrint(nlist.Code)
 			} else {
 				ns := nlist.Result.ReS.NewList
-				fmt.Printf("--- > 你选择的新闻类型为：%v \n",nlist.Result.ReS.Channel)
+				fmt.Printf("--- > 你选择的新闻类型为：%v \n", nlist.Result.ReS.Channel)
 				for _, vs := range ns {
 					fmt.Println("=== === === === === === ===")
 					fmt.Printf("\t--- > 标题： %v \n", vs.Title)
@@ -941,7 +942,7 @@ func GetCurrentPath() (string, error) {
 	return os.Getwd()
 }
 
-func getCurrentTime() (string) {
+func getCurrentTime() string {
 	return time.Now().Format("20060102150405")
 }
 
@@ -957,7 +958,7 @@ func WriteInit() *os.File {
 	/*if checkFileIsExist(filename) {
 		os.Create(filename)
 	}*/
-	logFile, err := os.OpenFile(filename, os.O_RDWR | os.O_CREATE, 0644)
+	logFile, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		fmt.Println("打开log文件出错！")
 	}
