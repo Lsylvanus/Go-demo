@@ -982,14 +982,11 @@ func checkFileIsExist(filename string) bool {
 }
 
 func getFileName() string {
-	_, fulleFilename, _, _ := runtime.Caller(0)
-	var filenameWithSuffix string
-	filenameWithSuffix = path.Base(fulleFilename)
-	var fileSuffix string
-	fileSuffix = path.Ext(filenameWithSuffix)
-
-	filenameOnly := strings.TrimSuffix(filenameWithSuffix, fileSuffix)
-	return filenameOnly
+	_, fullFileName, _, _ := runtime.Caller(0)
+	fileNameWithSuffix := path.Base(fullFileName)
+	fileSuffix := path.Ext(fileNameWithSuffix)
+	fileNameOnly := strings.TrimSuffix(fileNameWithSuffix, fileSuffix)
+	return fileNameOnly
 }
 
 func main() {
