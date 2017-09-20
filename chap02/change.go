@@ -78,6 +78,9 @@ func main() {
 	} else {
 		fmt.Println("false")
 	}
+
+	regex1 := "(https?|ftp|file)://[-A-Za-z0-9+&@#/%?=~_|!:,.;]+[-A-Za-z0-9+&@#/%=~_|]"
+	fmt.Println(getRegex(regex1, str))
 }
 
 func RenameFile(oldName, newName string) error {
