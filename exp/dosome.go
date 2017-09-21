@@ -19,9 +19,9 @@ var start string = "0"
 var typeName string = ""
 
 const (
-	acc_key  = "b637d49acf7c9644fc7d39d11e894fee"
-	num      = 5
-	filename = "out.txt"
+	acc_key   = "b637d49acf7c9644fc7d39d11e894fee"
+	num       = 5
+	file_name = "out.txt"
 )
 
 type Deli struct {
@@ -795,6 +795,7 @@ func UnmarJson(body []byte, num, str string) {
 				pros := list.Process
 				for i := 0; i < len(pros); i++ {
 					fmt.Printf("\t--- > %v. %v \n", i, pros[i].PContent)
+					logger.Printf("\t--- > %v. %v \n", i, pros[i].PContent)
 				}
 				fmt.Println("=== === === === === === ===")
 				logger.Println("=== === === === === === ===")
