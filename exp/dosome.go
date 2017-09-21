@@ -16,11 +16,15 @@ import (
 )
 
 var start string = "0"
+var page_num string = "1"
 var typeName string = ""
+var con_bool string = ""
 
 const (
 	acc_key   = "b637d49acf7c9644fc7d39d11e894fee"
-	num       = 5
+	num       = 10
+	topic_num = 20
+	sort      = "normal"
 	file_name = "out.txt"
 )
 
@@ -336,16 +340,57 @@ type PhoneMap struct {
 	AreaCode string `json:"areacode"`
 }
 
+type DriverEx struct {
+	Code   string `json:"code"`
+	Charge bool   `json:"charge"`
+	Msg    string `json:"msg"`
+	Result Result `json:"result"`
+}
+
+type Result struct {
+	Msg    string `json:"msg"`
+	ExamRe ExamRe `json:"result"`
+}
+
+type ExamRe struct {
+	Total    string     `json:"total"`
+	Subject  string     `json:"subject"`
+	PageSize string     `json:"pagesize"`
+	Sort     string     `json:"sort"`
+	PageNum  string     `json:"pagenum"`
+	Type     string     `json:"type"`
+	List     []ExamList `json:"list"`
+	Status   string     `json:"status"`
+}
+
+type ExamList struct {
+	Id       int
+	Explain  string `json:"explain"`
+	Subject  string
+	Chapter  string `json:"chapter"`
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
+	Option1  string `json:"option1"`
+	Option2  string `json:"option2"`
+	Option3  string `json:"option3"`
+	Option4  string `json:"option4"`
+	Pic      string `json:"pic"`
+	Type     string `json:"type"`
+}
+
 type Param struct {
-	com_type string
-	post_id  string
-	city     string
-	keyword  string
-	phone    string
-	shouji   string
-	change   int
-	news     string
-	news_s   string
+	com_type     string
+	post_id      string
+	city         string
+	keyword      string
+	phone        string
+	shouji       string
+	change       int
+	news         string
+	news_s       string
+	subject_type string
+	car_type     string
+	con_catch    string
 }
 
 func MFrm() {
@@ -357,12 +402,14 @@ func MFrm() {
 		3. 菜谱查询
 		4. 手机号码归属地查询
 		5. 新闻获取
-		6. 退出
+		6. 驾考题库
+		7. 退出
 
 	说明：
 		输入中文出现问题，请输入数字或英文。2017-09-08
 		尽量请不要访问 2 和 3 接口，谢谢合作！2017-09-11
 		2 号天气接口已更新，可正常使用。3 号接口不要访问。2017-09-13
+		新增驾考题库，公安部最新驾照考试题库，分小车、客车、货车、摩托车4类，科目一和科目四2种。2017-09-20
 		(exit 也可退出)
 	----------
 	`)
@@ -382,6 +429,8 @@ func MFrm() {
 	case "5":
 		PFrm("新闻查询", num)
 	case "6":
+		PFrm("驾考题库", num)
+	case "7":
 		fmt.Println("退出系统")
 		os.Exit(1)
 	case "exit":
@@ -411,10 +460,116 @@ func PFrm(str, num string) {
 		p = Param{phone: phone, shouji: phone}
 	case "5":
 		p = Param{news: "new"}
+	case "6":
+		car_type := ScanCarType()
+		subject_type := ScanSubjectType()
+		p = Param{car_type: car_type, subject_type: subject_type}
 	}
 	body, s, _ := GetBody(p)
 	UnmarJson(body, num, s)
 	MFrm()
+}
+
+func matchCarType(str string) bool {
+	carTypeMap := map[int]string{
+		0:  "A1",
+		1:  "A3",
+		2:  "B1",
+		3:  "A2",
+		4:  "B2",
+		5:  "C1",
+		6:  "C2",
+		7:  "C3",
+		8:  "D",
+		9:  "E",
+		10: "F",
+	}
+	var b bool
+	for _, t := range carTypeMap {
+		if strings.ToLower(str) == t {
+			b = true
+			break
+		} else if strings.ToUpper(str) == t {
+			b = true
+			break
+		} else {
+			b = false
+		}
+	}
+	return b
+}
+
+func ScanContinueStr() string {
+	fmt.Println(`
+	----------
+	驾考题库：
+		继续下一页吗？
+	----------
+	`)
+	con_catch := ""
+	for {
+		con_catch = Input("请输入 y & n：", "")
+		if con_catch != "" {
+			if con_catch != "y" && con_catch != "n" {
+				fmt.Println("输入错误，请重新输入！")
+				return ScanContinueStr()
+			} else {
+				break
+			}
+		}
+	}
+	return con_catch
+}
+
+func ScanCarType() string {
+	fmt.Println(`
+	----------
+	驾考题目类型：
+		分为
+			A1, A3, B1, A2, B2,
+			C1, C2, C3, D,  E,
+			F
+
+		...默认C1
+	----------
+	`)
+	car_type := ""
+	for {
+		car_type = Input("输入驾考题目类型：(忽略大小写)", "C1")
+		if car_type != "" {
+			if !matchCarType(car_type) {
+				fmt.Println("输入错误，请重新输入！")
+				return ScanCarType()
+			} else {
+				break
+			}
+		}
+	}
+	return car_type
+}
+
+func ScanSubjectType() string {
+	fmt.Println(`
+	----------
+	驾考科目类型：
+		1	为科目一
+		4	为科目四
+
+		...默认1
+	----------
+	`)
+	subject_type := ""
+	for {
+		subject_type = Input("输入驾考科目类型：", "1")
+		if subject_type != "" {
+			if subject_type != "1" && subject_type != "4" {
+				fmt.Println("输入错误，请重新输入！")
+				return ScanSubjectType()
+			}
+			break
+		}
+	}
+	return subject_type
 }
 
 func ScanExpress() (string, string) {
@@ -578,7 +733,7 @@ func GetBody(p Param) ([]byte, string, error) {
 		if typeName != "" {
 			if typeName == p.news_s {
 				sInt, _ := strconv.Atoi(start)
-				sInt += 5
+				sInt += 10
 				start = strconv.Itoa(sInt)
 			} else {
 				typeName = p.news_s
@@ -586,6 +741,15 @@ func GetBody(p Param) ([]byte, string, error) {
 		} else {
 			typeName = p.news_s
 		}
+	} else if p.car_type != "" && p.subject_type != "" {
+		url = "https://way.jd.com/jisuapi/driverexamQuery?type=" + p.car_type + "&subject=" + p.subject_type + "&pagesize=" + strconv.Itoa(topic_num) + "&pagenum=" + page_num + "&sort=" + sort + "&appkey=" + acc_key
+	} else if p.con_catch != "" {
+		if con_bool != "" {
+			sInt, _ := strconv.Atoi(page_num)
+			sInt += 1
+			page_num = strconv.Itoa(sInt)
+		}
+		url = "https://way.jd.com/jisuapi/driverexamQuery?type=" + p.car_type + "&subject=" + p.subject_type + "&pagesize=" + strconv.Itoa(topic_num) + "&pagenum=" + page_num + "&sort=" + sort + "&appkey=" + acc_key
 	}
 	r, err := http.Get(url)
 	if err != nil {
@@ -901,6 +1065,61 @@ func UnmarJson(body []byte, num, str string) {
 				}
 			}
 
+		}
+	case "6":
+		logFile := WriteInit()
+		logger := log.New(logFile, "\r\n", log.Ldate|log.Ltime|log.Lshortfile)
+		defer logFile.Close()
+		driverEx := new(DriverEx)
+		err := json.Unmarshal(body, driverEx)
+		if err != nil {
+			fmt.Println("接口返回信息解析出错!")
+		}
+		if driverEx.Code != "10000" {
+			ErrPrint(driverEx.Code)
+		} else {
+			examList := driverEx.Result.ExamRe.List
+			for i, e := range examList {
+				fmt.Printf("=== === === = 第%v题 = === === ===\n", i+1)
+				fmt.Printf("\t--- > 章节： %v \n", e.Chapter)
+				fmt.Printf("\t--- > 问题： %v \n", e.Question)
+				logger.Printf("=== === === = 第%v题 = === === ===\n", i+1)
+				logger.Printf("\t--- > 章节： %v \n", e.Chapter)
+				logger.Printf("\t--- > 问题： %v \n", e.Question)
+				if e.Option1 != "" && e.Option2 != "" && e.Option3 != "" && e.Option4 != "" {
+					fmt.Printf("\t--- > 选项A： %v \n", e.Option1)
+					fmt.Printf("\t--- > 选项B： %v \n", e.Option2)
+					fmt.Printf("\t--- > 选项C： %v \n", e.Option3)
+					fmt.Printf("\t--- > 选项A： %v \n", e.Option4)
+					logger.Printf("\t--- > 选项A： %v \n", e.Option1)
+					logger.Printf("\t--- > 选项B： %v \n", e.Option2)
+					logger.Printf("\t--- > 选项C： %v \n", e.Option3)
+					logger.Printf("\t--- > 选项A： %v \n", e.Option4)
+				}
+				fmt.Printf("\t--- > 答案： %v \n", e.Answer)
+				fmt.Printf("\t--- > 解释： %v \n", e.Explain)
+				logger.Printf("\t--- > 答案： %v \n", e.Answer)
+				logger.Printf("\t--- > 解释： %v \n", e.Explain)
+				if e.Pic != "" {
+					fmt.Printf("\t--- > 图片： %v \n", e.Pic)
+					logger.Printf("\t--- > 图片： %v \n", e.Pic)
+				}
+				fmt.Println("=== === === === === === ===")
+				fmt.Println("")
+				logger.Println("=== === === === === === ===")
+				logger.Println("")
+			}
+
+			b := ScanContinueStr()
+			p := Param{con_catch: b}
+			if b == "y" {
+				con_bool = b
+				body, s, _ := GetBody(p)
+				UnmarJson(body, num, s)
+			} else {
+				con_bool = ""
+				MFrm()
+			}
 		}
 	}
 }
