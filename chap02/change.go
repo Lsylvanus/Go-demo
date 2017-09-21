@@ -103,6 +103,14 @@ func main() {
 		}
 		fmt.Println("i is:", i)
 	}
+
+	for i := 0; i <= 10 ; i++ {
+		if i != 11 {
+			continue
+			fmt.Println("continue ", i)
+		}
+	}
+	fmt.Println("finished.")
 }
 
 func RenameFile(oldName, newName string) error {
