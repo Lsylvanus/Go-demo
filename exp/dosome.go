@@ -17,7 +17,6 @@ import (
 
 var start string = "0"
 var page_num string = "1"
-var typeName string = ""
 var con_bool string = ""
 
 const (
@@ -409,7 +408,8 @@ func MFrm() {
 		输入中文出现问题，请输入数字或英文。2017-09-08
 		尽量请不要访问 2 和 3 接口，谢谢合作！2017-09-11
 		2 号天气接口已更新，可正常使用。3 号接口不要访问。2017-09-13
-		新增驾考题库，公安部最新驾照考试题库，分小车、客车、货车、摩托车4类，科目一和科目四2种。2017-09-20
+		新增驾考题库，公安部最新驾照考试题库，
+			分小车、客车、货车、摩托车4类，科目一和科目四2种。2017-09-20
 		(exit 也可退出)
 	----------
 	`)
@@ -729,18 +729,12 @@ func GetBody(p Param) ([]byte, string, error) {
 	} else if p.news != "" {
 		url = "https://way.jd.com/jisuapi/channel?appkey=" + acc_key
 	} else if p.news_s != "" {
-		url = "https://way.jd.com/jisuapi/get?channel=" + p.news_s + "&num=" + strconv.Itoa(num) + "&start=" + start + "&appkey=" + acc_key
-		if typeName != "" {
-			if typeName == p.news_s {
-				sInt, _ := strconv.Atoi(start)
-				sInt += 10
-				start = strconv.Itoa(sInt)
-			} else {
-				typeName = p.news_s
-			}
-		} else {
-			typeName = p.news_s
+		if con_bool != "" {
+			sInt, _ := strconv.Atoi(start)
+			sInt += 1
+			start = strconv.Itoa(sInt)
 		}
+		url = "https://way.jd.com/jisuapi/get?channel=" + p.news_s + "&num=" + strconv.Itoa(num) + "&start=" + start + "&appkey=" + acc_key
 	} else if p.car_type != "" && p.subject_type != "" {
 		url = "https://way.jd.com/jisuapi/driverexamQuery?type=" + p.car_type + "&subject=" + p.subject_type + "&pagesize=" + strconv.Itoa(topic_num) + "&pagenum=" + page_num + "&sort=" + sort + "&appkey=" + acc_key
 	} else if p.con_catch != "" {
@@ -1063,6 +1057,16 @@ func UnmarJson(body []byte, num, str string) {
 					logger.Println("=== === === === === === ===")
 					logger.Println("")
 				}
+			}
+			con_b := ScanContinueStr()
+			p := Param{con_catch: con_b}
+			if con_b == "y" {
+				con_bool = con_b
+				body, s, _ := GetBody(p)
+				UnmarJson(body, num, s)
+			} else {
+				con_bool = ""
+				MFrm()
 			}
 
 		}
