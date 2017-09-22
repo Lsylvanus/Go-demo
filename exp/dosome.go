@@ -12,7 +12,9 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"net"
 	"time"
+	"regexp"
 )
 
 var start string = "0"
@@ -379,6 +381,28 @@ type ExamList struct {
 	Type     string `json:"type"`
 }
 
+type (
+	IpCon struct {
+		Code int`json:"code"`
+		Data IpData`json:"data"`
+	}
+	IpData struct {
+		Country string`json:"country"`
+		CountryId string`json:"country_id"`
+		Area string`json:"area"`
+		AreaId string`json:"area_id"`
+		Region string`json:"region"`
+		RegionId string`json:"region_id"`
+		City string`json:"city"`
+		CityId string`json:"city_id"`
+		County string`json:"county"`
+		CountyId string`json:"county_id"`
+		Isp string`json:"isp"`
+		IspId string`json:"isp_id"`
+		Ip string`json:"ip"`
+	}
+)
+
 type Param struct {
 	com_type     string
 	post_id      string
@@ -393,6 +417,7 @@ type Param struct {
 	car_type     string
 	con_catch    string
 	con_new      string
+	ip_addr      string
 }
 
 func MFrm() {
@@ -405,7 +430,8 @@ func MFrm() {
 		4. 手机号码归属地查询
 		5. 新闻获取
 		6. 驾考题库
-		7. 退出
+		7. IP地址查询
+		0. 退出
 
 	说明：
 		输入中文出现问题，请输入数字或英文。2017-09-08
@@ -413,6 +439,7 @@ func MFrm() {
 		2 号天气接口已更新，可正常使用。3 号接口不要访问。2017-09-13
 		新增驾考题库，公安部最新驾照考试题库，
 			分小车、客车、货车、摩托车4类，科目一和科目四2种。2017-09-20
+		新增IP地址查询。2017-09-22
 		(exit 也可退出)
 	----------
 	`)
@@ -434,6 +461,8 @@ func MFrm() {
 	case "6":
 		PFrm("驾考题库", num)
 	case "7":
+		PFrm("IP地址查询", num)
+	case "0":
 		fmt.Println("退出系统")
 		os.Exit(1)
 	case "exit":
@@ -467,10 +496,65 @@ func PFrm(str, num string) {
 		car_type := ScanCarType()
 		subject_type := ScanSubjectType()
 		p = Param{car_type: car_type, subject_type: subject_type}
+	case "7":
+		ip_addr := ScanIpStr()
+		p = Param{ip_addr:ip_addr}
 	}
 	body, s, _ := GetBody(p)
 	UnmarJson(body, num, s)
 	MFrm()
+}
+
+func getLocalIp() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		fmt.Println("net interface addr :", err)
+		os.Exit(1)
+	}
+	var ip string
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				//fmt.Println(ipnet.IP.String())
+				ip = ipnet.IP.String()
+			}
+		}
+	}
+	return ip
+}
+
+func matchIpAddr(ip_addr string) bool {
+	pattern := "^(([0-2]*[0-9]+[0-9]+)\\.([0-2]*[0-9]+[0-9]+)\\.([0-2]*[0-9]+[0-9]+)\\.([0-2]*[0-9]+[0-9]+))$"
+	b, err := regexp.MatchString(pattern, ip_addr)
+	if err != nil {
+		fmt.Println("match string :", err)
+	}
+	if b {
+		return true
+	}
+	return false
+}
+
+func ScanIpStr() string {
+	fmt.Println(`
+	----------
+	IP地址：
+		比如：63.223.108.42
+	----------
+	`)
+	ip_addr := ""
+	for {
+		ip_addr = Input("输入IP地址：", getLocalIp())
+		if ip_addr != "" {
+			if !matchIpAddr(ip_addr) {
+				fmt.Println("IP地址格式错误，请重新输入！")
+				return ScanIpStr()
+			} else {
+				break
+			}
+		}
+	}
+	return ip_addr
 }
 
 func matchCarType(str string) bool {
@@ -748,6 +832,8 @@ func GetBody(p Param) ([]byte, string, error) {
 			start = strconv.Itoa(sInt)
 		}
 		url = "https://way.jd.com/jisuapi/get?channel=" + p.news_s + "&num=" + strconv.Itoa(num) + "&start=" + start + "&appkey=" + acc_key
+	} else if p.ip_addr != "" {
+		url = "http://ip.taobao.com/service/getIpInfo.php?ip=" + p.ip_addr
 	}
 	r, err := http.Get(url)
 	if err != nil {
@@ -1131,6 +1217,26 @@ func UnmarJson(body []byte, num, str string) {
 				MFrm()
 			}
 		}
+	case "7":
+		logFile := WriteInit()
+		logger := log.New(logFile, "\r\n", log.Ldate|log.Ltime|log.Lshortfile)
+		defer logFile.Close()
+		ipd := new(IpCon)
+		err := json.Unmarshal(body, ipd)
+		if err != nil {
+			fmt.Println("接口返回信息解析出错!")
+		}
+		ip := ipd.Data
+		fmt.Printf("\t--- > IP地址： %v \n", ip.Ip)
+		fmt.Printf("\t--- > 国家(%v)： %v \n", ip.CountryId, ip.Country)
+		fmt.Printf("\t--- > 区/州(%v/%v)： %v / %v \n", ip.AreaId, ip.RegionId, ip.Area, ip.Region)
+		fmt.Printf("\t--- > 城市(%v)： %v \n", ip.CityId, ip.City)
+		fmt.Printf("\t--- > 网络服务提供者(%v)： %v \n", ip.IspId, ip.Isp)
+		logger.Printf("\t--- > IP地址： %v \n", ip.Ip)
+		logger.Printf("\t--- > 国家(%v)： %v \n", ip.CountryId, ip.Country)
+		logger.Printf("\t--- > 区/州(%v/%v)： %v / %v \n", ip.AreaId, ip.RegionId, ip.Area, ip.Region)
+		logger.Printf("\t--- > 城市(%v)： %v \n", ip.CityId, ip.City)
+		logger.Printf("\t--- > 网络服务提供者(%v)： %v \n", ip.IspId, ip.Isp)
 	}
 }
 
