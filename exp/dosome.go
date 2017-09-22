@@ -16,6 +16,8 @@ import (
 )
 
 var start string = "0"
+var con_b string = ""
+var new_type string = ""
 var page_num string = "1"
 var con_bool string = ""
 
@@ -390,6 +392,7 @@ type Param struct {
 	subject_type string
 	car_type     string
 	con_catch    string
+	con_new      string
 }
 
 func MFrm() {
@@ -502,7 +505,6 @@ func matchCarType(str string) bool {
 func ScanContinueStr() string {
 	fmt.Println(`
 	----------
-	驾考题库：
 		继续下一页吗？
 	----------
 	`)
@@ -510,7 +512,7 @@ func ScanContinueStr() string {
 	for {
 		con_catch = Input("请输入 y & n：", "")
 		if con_catch != "" {
-			if con_catch != "y" && con_catch != "n" {
+			if con_catch != "y" && con_catch != "n" && con_catch != "Y" && con_catch != "N" {
 				fmt.Println("输入错误，请重新输入！")
 				return ScanContinueStr()
 			} else {
@@ -729,11 +731,6 @@ func GetBody(p Param) ([]byte, string, error) {
 	} else if p.news != "" {
 		url = "https://way.jd.com/jisuapi/channel?appkey=" + acc_key
 	} else if p.news_s != "" {
-		if con_bool != "" {
-			sInt, _ := strconv.Atoi(start)
-			sInt += 1
-			start = strconv.Itoa(sInt)
-		}
 		url = "https://way.jd.com/jisuapi/get?channel=" + p.news_s + "&num=" + strconv.Itoa(num) + "&start=" + start + "&appkey=" + acc_key
 	} else if p.car_type != "" && p.subject_type != "" {
 		url = "https://way.jd.com/jisuapi/driverexamQuery?type=" + p.car_type + "&subject=" + p.subject_type + "&pagesize=" + strconv.Itoa(topic_num) + "&pagenum=" + page_num + "&sort=" + sort + "&appkey=" + acc_key
@@ -744,6 +741,13 @@ func GetBody(p Param) ([]byte, string, error) {
 			page_num = strconv.Itoa(sInt)
 		}
 		url = "https://way.jd.com/jisuapi/driverexamQuery?type=" + p.car_type + "&subject=" + p.subject_type + "&pagesize=" + strconv.Itoa(topic_num) + "&pagenum=" + page_num + "&sort=" + sort + "&appkey=" + acc_key
+	} else if p.con_new != "" {
+		if con_b != "" {
+			sInt, _ := strconv.Atoi(start)
+			sInt += 10
+			start = strconv.Itoa(sInt)
+		}
+		url = "https://way.jd.com/jisuapi/get?channel=" + p.news_s + "&num=" + strconv.Itoa(num) + "&start=" + start + "&appkey=" + acc_key
 	}
 	r, err := http.Get(url)
 	if err != nil {
@@ -1020,56 +1024,58 @@ func UnmarJson(body []byte, num, str string) {
 		logFile := WriteInit()
 		logger := log.New(logFile, "\r\n", log.Ldate|log.Ltime|log.Lshortfile)
 		defer logFile.Close()
-		n := new(NewsData)
-		err := json.Unmarshal(body, n)
-		if err != nil {
-			fmt.Println("接口返回信息解析出错!")
-		}
-		if n.Code != "10000" {
-			ErrPrint(n.Code)
-		} else {
-			res := n.Result.ReS
-			ss := PTypeOfNews(res)
-			s := ScanNews(ss)
-
-			b, _, _ := GetBody(Param{news_s: s})
-			nlist := new(NewsListData)
-			err1 := json.Unmarshal(b, nlist)
-			if err1 != nil {
+		if con_b == "" {
+			n := new(NewsData)
+			err := json.Unmarshal(body, n)
+			if err != nil {
 				fmt.Println("接口返回信息解析出错!")
 			}
-			if nlist.Code != "10000" {
-				ErrPrint(nlist.Code)
+			if n.Code != "10000" {
+				ErrPrint(n.Code)
 			} else {
-				ns := nlist.Result.ReS.NewList
-				fmt.Printf("--- > 你选择的新闻类型为：%v \n", nlist.Result.ReS.Channel)
-				for _, vs := range ns {
-					fmt.Println("=== === === === === === ===")
-					fmt.Printf("\t--- > 标题： %v \n", vs.Title)
-					fmt.Printf("\t--- > 时间： %v \t\t来源：%v \n", vs.Time, vs.Src)
-					fmt.Printf("\t--- > 内容： %v \n", vs.Content)
-					fmt.Println("=== === === === === === ===")
-					fmt.Println("")
-					logger.Println("=== === === === === === ===")
-					logger.Printf("\t--- > 标题： %v \n", vs.Title)
-					logger.Printf("\t--- > 时间： %v \t\t，来源：%v \n", vs.Time, vs.Src)
-					logger.Printf("\t--- > 内容： %v \n", vs.Content)
-					logger.Println("=== === === === === === ===")
-					logger.Println("")
-				}
+				res := n.Result.ReS
+				ss := PTypeOfNews(res)
+				new_type = ScanNews(ss)
 			}
-			con_b := ScanContinueStr()
-			p := Param{con_catch: con_b}
-			if con_b == "y" {
-				con_bool = con_b
-				body, s, _ := GetBody(p)
-				UnmarJson(body, num, s)
-			} else {
-				con_bool = ""
-				MFrm()
-			}
-
 		}
+
+		b, _, _ := GetBody(Param{news_s: new_type})
+		nlist := new(NewsListData)
+		err1 := json.Unmarshal(b, nlist)
+		if err1 != nil {
+			fmt.Println("接口返回信息解析出错!")
+		}
+		if nlist.Code != "10000" {
+			ErrPrint(nlist.Code)
+		} else {
+			ns := nlist.Result.ReS.NewList
+			fmt.Printf("--- > 你选择的新闻类型为：%v \n", nlist.Result.ReS.Channel)
+			for _, vs := range ns {
+				fmt.Println("=== === === === === === ===")
+				fmt.Printf("\t--- > 标题： %v \n", vs.Title)
+				fmt.Printf("\t--- > 时间： %v \t\t来源：%v \n", vs.Time, vs.Src)
+				fmt.Printf("\t--- > 内容： %v \n", vs.Content)
+				fmt.Println("=== === === === === === ===")
+				fmt.Println("")
+				logger.Println("=== === === === === === ===")
+				logger.Printf("\t--- > 标题： %v \n", vs.Title)
+				logger.Printf("\t--- > 时间： %v \t\t，来源：%v \n", vs.Time, vs.Src)
+				logger.Printf("\t--- > 内容： %v \n", vs.Content)
+				logger.Println("=== === === === === === ===")
+				logger.Println("")
+			}
+		}
+		c_b := ScanContinueStr()
+		pa := Param{con_new: c_b, news_s: new_type}
+		if c_b == "y" {
+			con_b = c_b
+			body, w, _ := GetBody(pa)
+			UnmarJson(body, num, w)
+		} else {
+			con_b = ""
+			MFrm()
+		}
+
 	case "6":
 		logFile := WriteInit()
 		logger := log.New(logFile, "\r\n", log.Ldate|log.Ltime|log.Lshortfile)
