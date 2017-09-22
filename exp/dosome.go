@@ -1190,7 +1190,7 @@ func UnmarJson(body []byte, num, str string) {
 					logger.Printf("\t--- > 选项A： %v \n", e.Option1)
 					logger.Printf("\t--- > 选项B： %v \n", e.Option2)
 					logger.Printf("\t--- > 选项C： %v \n", e.Option3)
-					logger.Printf("\t--- > 选项A： %v \n", e.Option4)
+					logger.Printf("\t--- > 选项D： %v \n", e.Option4)
 				}
 				fmt.Printf("\t--- > 答案： %v \n", e.Answer)
 				fmt.Printf("\t--- > 解释： %v \n", e.Explain)
