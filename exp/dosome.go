@@ -549,9 +549,8 @@ func ScanIpStr() string {
 			if !matchIpAddr(ip_addr) {
 				fmt.Println("IP地址格式错误，请重新输入！")
 				return ScanIpStr()
-			} else {
-				break
 			}
+			break
 		}
 	}
 	return ip_addr
@@ -599,9 +598,8 @@ func ScanContinueStr() string {
 			if con_catch != "y" && con_catch != "n" && con_catch != "Y" && con_catch != "N" {
 				fmt.Println("输入错误，请重新输入！")
 				return ScanContinueStr()
-			} else {
-				break
 			}
+			break
 		}
 	}
 	return con_catch
@@ -626,9 +624,8 @@ func ScanCarType() string {
 			if !matchCarType(car_type) {
 				fmt.Println("输入错误，请重新输入！")
 				return ScanCarType()
-			} else {
-				break
 			}
+			break
 		}
 	}
 	return car_type
@@ -658,6 +655,30 @@ func ScanSubjectType() string {
 	return subject_type
 }
 
+func matchExpress(com string) bool {
+	expressMap := map[int]string{
+		0:  "shentong",
+		1:  "ems",
+		2:  "shunfeng",
+		3:  "yuantong",
+		4:  "zhongtong",
+		5:  "yunda",
+		6:  "tiantian",
+		7:  "huitongkuaidi",
+		8:  "quanfengkuaidi",
+		9:  "debangwuliu",
+		10: "zhaijisong",
+	}
+	for _, v := range expressMap {
+		if strings.ToLower(com) == v {
+			return true
+		} else if com == v {
+			return true
+		}
+	}
+	return false
+}
+
 func ScanExpress() (string, string) {
 	fmt.Println(`
 	----------
@@ -673,8 +694,14 @@ func ScanExpress() (string, string) {
 	for {
 		com_type = Input("输入快递公司：", "")
 		post_id = Input("输入快递单号：", "")
-		if com_type != "" && post_id != "" {
-			break
+		if com_type != "" {
+			if !matchExpress(com_type) {
+				fmt.Println("输入错误，请输入上述快递公司编码！")
+				return ScanExpress()
+			}
+			if post_id != "" {
+				break
+			}
 		}
 	}
 	//fmt.Printf("快递公司为：%v，单号为：%v。\n", com_type, post_id)
@@ -748,6 +775,15 @@ func ScanFood() string {
 	return keyword
 }
 
+func matchPhone(phone string) bool {
+	regex := "^((13[0-9])|(14[5|7])|(15([0-3]|[5-9]))|(18[0,5-9]))\\d{8}$"
+	b, _ := regexp.MatchString(regex, phone)
+	if b {
+		return true
+	}
+	return false
+}
+
 func ScanPhone() string {
 	fmt.Println(`
 	----------
@@ -759,6 +795,10 @@ func ScanPhone() string {
 	for {
 		phone = Input("输入手机号码：", "")
 		if phone != "" {
+			if !matchPhone(phone) {
+				fmt.Println("手机号码格式错误，请重新输入！")
+				return ScanPhone()
+			}
 			break
 		}
 	}
@@ -916,13 +956,13 @@ func UnmarJson(body []byte, num, str string) {
 				fmt.Printf("--- > 状态：%v \n", n.Now.Cond.Txt)
 				fmt.Printf("--- > 风向：%v \n", n.Now.Wind.Dir)
 				fmt.Printf("--- > 风级：%v \n", n.Now.Wind.Sc)
-				fmt.Println("=== === === === === === ===")
+				fmt.Println(" ──────────────────────── ")
 				logger.Printf("--- > %v现在天气如下 \n", n.Basic.City)
 				logger.Printf("--- > 温度：%v \n", n.Now.Tmp)
 				logger.Printf("--- > 状态：%v \n", n.Now.Cond.Txt)
 				logger.Printf("--- > 风向：%v \n", n.Now.Wind.Dir)
 				logger.Printf("--- > 风级：%v \n", n.Now.Wind.Sc)
-				logger.Println("=== === === === === === ===")
+				logger.Println(" ──────────────────────── ")
 				sug := n.Suggestion
 				fmt.Printf("--- > 天气事件建议 \n")
 				fmt.Printf("--- > 外出：%v \n", sug.Uv.Txt)
@@ -941,7 +981,7 @@ func UnmarJson(body []byte, num, str string) {
 				fmt.Printf("--- > 程度：%v \n", sug.Sport.Brf)
 				fmt.Printf("--- > 感冒：%v \n", sug.Flu.Txt)
 				fmt.Printf("--- > 程度：%v \n", sug.Flu.Brf)
-				fmt.Println("=== === === === === === ===")
+				fmt.Println(" ──────────────────────── ")
 				logger.Printf("--- > 天气事件建议 \n")
 				logger.Printf("--- > 外出：%v \n", sug.Uv.Txt)
 				logger.Printf("--- > 程度：%v \n", sug.Uv.Brf)
@@ -959,7 +999,7 @@ func UnmarJson(body []byte, num, str string) {
 				logger.Printf("--- > 程度：%v \n", sug.Sport.Brf)
 				logger.Printf("--- > 感冒：%v \n", sug.Flu.Txt)
 				logger.Printf("--- > 程度：%v \n", sug.Flu.Brf)
-				logger.Println("=== === === === === === ===")
+				logger.Println(" ──────────────────────── ")
 				dailys := n.DailyForecast
 				for _, d := range dailys {
 					fmt.Printf("--- > %v 天气如下 \n", d.Date)
@@ -975,7 +1015,7 @@ func UnmarJson(body []byte, num, str string) {
 					logger.Printf("--- > 刮风情况：%v - %v \n", d.Wind.Sc, d.Wind.Dir)
 					logger.Println("--- --- --- ---")
 				}
-				fmt.Println("=== === === === === === ===")
+				fmt.Println(" ──────────────────────── ")
 				hours := n.HourlyForecast
 				for _, h := range hours {
 					fmt.Printf("--- > %v 天气如下 \n", h.Date)
@@ -1045,8 +1085,8 @@ func UnmarJson(body []byte, num, str string) {
 					fmt.Printf("\t--- > %v. %v \n", i, pros[i].PContent)
 					logger.Printf("\t--- > %v. %v \n", i, pros[i].PContent)
 				}
-				fmt.Println("=== === === === === === ===")
-				logger.Println("=== === === === === === ===")
+				fmt.Println(" ──────────────────────── ")
+				logger.Println(" ──────────────────────── ")
 			}
 		}
 	case "4":
@@ -1137,17 +1177,17 @@ func UnmarJson(body []byte, num, str string) {
 			ns := nlist.Result.ReS.NewList
 			fmt.Printf("--- > 你选择的新闻类型为：%v \n", nlist.Result.ReS.Channel)
 			for _, vs := range ns {
-				fmt.Println("=== === === === === === ===")
+				fmt.Println(" ──────────────────────── ")
 				fmt.Printf("\t--- > 标题： %v \n", vs.Title)
 				fmt.Printf("\t--- > 时间： %v \t\t来源：%v \n", vs.Time, vs.Src)
 				fmt.Printf("\t--- > 内容： %v \n", vs.Content)
-				fmt.Println("=== === === === === === ===")
+				fmt.Println(" ──────────────────────── ")
 				fmt.Println("")
-				logger.Println("=== === === === === === ===")
+				logger.Println(" ──────────────────────── ")
 				logger.Printf("\t--- > 标题： %v \n", vs.Title)
 				logger.Printf("\t--- > 时间： %v \t\t，来源：%v \n", vs.Time, vs.Src)
 				logger.Printf("\t--- > 内容： %v \n", vs.Content)
-				logger.Println("=== === === === === === ===")
+				logger.Println(" ──────────────────────── ")
 				logger.Println("")
 			}
 		}
@@ -1176,17 +1216,17 @@ func UnmarJson(body []byte, num, str string) {
 		} else {
 			examList := driverEx.Result.ExamRe.List
 			for i, e := range examList {
-				fmt.Printf("=== === === = 第%v题 = === === ===\n", i+1)
+				fmt.Printf("─────────── 第%v题 ───────────\n", i+1)
 				fmt.Printf("\t--- > 章节： %v \n", e.Chapter)
 				fmt.Printf("\t--- > 问题： %v \n", e.Question)
-				logger.Printf("=== === === = 第%v题 = === === ===\n", i+1)
+				logger.Printf("─────────── 第%v题 ───────────\n", i+1)
 				logger.Printf("\t--- > 章节： %v \n", e.Chapter)
 				logger.Printf("\t--- > 问题： %v \n", e.Question)
 				if e.Option1 != "" && e.Option2 != "" && e.Option3 != "" && e.Option4 != "" {
 					fmt.Printf("\t--- > 选项A： %v \n", e.Option1)
 					fmt.Printf("\t--- > 选项B： %v \n", e.Option2)
 					fmt.Printf("\t--- > 选项C： %v \n", e.Option3)
-					fmt.Printf("\t--- > 选项A： %v \n", e.Option4)
+					fmt.Printf("\t--- > 选项D： %v \n", e.Option4)
 					logger.Printf("\t--- > 选项A： %v \n", e.Option1)
 					logger.Printf("\t--- > 选项B： %v \n", e.Option2)
 					logger.Printf("\t--- > 选项C： %v \n", e.Option3)
@@ -1200,9 +1240,9 @@ func UnmarJson(body []byte, num, str string) {
 					fmt.Printf("\t--- > 图片： %v \n", e.Pic)
 					logger.Printf("\t--- > 图片： %v \n", e.Pic)
 				}
-				fmt.Println("=== === === === === === ===")
+				fmt.Println(" ──────────────────────── ")
 				fmt.Println("")
-				logger.Println("=== === === === === === ===")
+				logger.Println(" ──────────────────────── ")
 				logger.Println("")
 			}
 
