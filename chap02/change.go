@@ -34,8 +34,7 @@ func SqlitComma(s, seq string) {
 }
 
 func SplitEqual(s, seq string) (string, string) {
-	var forward string
-	var behind string
+	var forward, behind string
 	str := strings.Split(s, seq)
 	for i, v := range str {
 		if i == 0 {
@@ -59,6 +58,12 @@ func main() {
 	SplitWord(key)
 	f, b := SplitEqual(key, "=")
 	fmt.Printf("f is :%v, b is :%v\n", f, b)
+
+	keys := "JYQHSFK7GCCK5BWI4OE62KHG6MQHIB3KGHDA"
+	ks := strings.Split(keys, ";")
+	for i, v := range ks {
+		fmt.Printf("i is :%v, v is :%v\n", i, v)
+	}
 	
 	fmt.Println(Max(4, 3))
 
