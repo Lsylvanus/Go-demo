@@ -22,9 +22,13 @@ var con_b string = ""
 var new_type string = ""
 var page_num string = "1"
 var con_bool string = ""
+var unix_time string = ""
+var page_n   string = "1"
+var fun_bool string = ""
 
 const (
 	acc_key   = "b637d49acf7c9644fc7d39d11e894fee"
+	app_key   = "534f8783b7682c81a0df353513ba1119"
 	num       = 10
 	topic_num = 20
 	sort      = "normal"
@@ -403,6 +407,23 @@ type (
 	}
 )
 
+type (
+	FunReturn struct {
+		ErrorCode int`json:"error_code"`
+		Reason string`json:"reason"`
+		Result FunResult`json:"result"`
+	}
+	FunResult struct {
+		FunData []FunData`json:"data"`
+	}
+	FunData struct {
+		Content string`json:"content"`
+		HashId string`json:"hashId"`
+		UnixTime int`json:"unixtime"`
+		UpdateTime string`json:"updatetime"`
+	}
+)
+
 type Param struct {
 	com_type     string
 	post_id      string
@@ -418,6 +439,8 @@ type Param struct {
 	con_catch    string
 	con_new      string
 	ip_addr      string
+	unixTime     string
+	con_fun      string
 }
 
 func MFrm() {
@@ -431,6 +454,7 @@ func MFrm() {
 		5. 新闻获取
 		6. 驾考题库
 		7. IP地址查询
+		8. 笑话大全
 		0. 退出
 
 	说明：
@@ -440,6 +464,7 @@ func MFrm() {
 		新增驾考题库，公安部最新驾照考试题库，
 			分小车、客车、货车、摩托车4类，科目一和科目四2种。2017-09-20
 		新增IP地址查询。2017-09-22
+		新增笑话大全，获取某个时间后的笑话列表。2017-10-09
 		(exit 也可退出)
 	----------
 	`)
@@ -462,6 +487,8 @@ func MFrm() {
 		PFrm("驾考题库", num)
 	case "7":
 		PFrm("IP地址查询", num)
+	case "8":
+		PFrm("笑话大全", num)
 	case "0":
 		fmt.Println("退出系统")
 		os.Exit(1)
@@ -499,10 +526,51 @@ func PFrm(str, num string) {
 	case "7":
 		ip_addr := ScanIpStr()
 		p = Param{ip_addr:ip_addr}
+	case "8":
+		unixTime := ScanUnixTime()
+		unix_time = unixTime
+		p = Param{unixTime:unixTime}
 	}
 	body, s, _ := GetBody(p)
 	UnmarJson(body, num, s)
 	MFrm()
+}
+
+func getCurUnixTime() string {
+	unixInt := time.Now().Unix()
+	return strconv.Itoa(int(unixInt))
+}
+
+func matchUnixTime(unixTime string) (string, bool) {
+	unixTimeInt, _ := strconv.Atoi(unixTime)
+	if unixTimeInt < 1000000000 {
+		return "必须为10位时间戳", false
+	}
+	return "", true
+}
+
+func ScanUnixTime() string {
+	fmt.Println(`
+	----------
+	Unix时间：
+		比如：1507502298（北京时间：2017/10/9 6:38:18）
+		转换地址参考：http://tool.chinaz.com/Tools/unixtime.aspx
+		注意：为保证数据存在，请输入2015年之后的时间戳
+	----------
+	`)
+	unixTime := ""
+	for {
+		unixTime = Input("输入Unix时间：", getCurUnixTime())
+		if unixTime != "" {
+			str, b := matchUnixTime(unixTime)
+			if !b {
+				fmt.Println(str+"，请重新输入！")
+				return ScanUnixTime()
+			}
+			break
+		}
+	}
+	return unixTime
 }
 
 func getLocalIp() string {
@@ -524,7 +592,8 @@ func getLocalIp() string {
 }
 
 func matchIpAddr(ip_addr string) bool {
-	pattern := "^(([0-2]*[0-9]+[0-9]+)\\.([0-2]*[0-9]+[0-9]+)\\.([0-2]*[0-9]+[0-9]+)\\.([0-2]*[0-9]+[0-9]+))$"
+	//^(([0-2]*[0-9]+[0-9]+)\\.([0-2]*[0-9]+[0-9]+)\\.([0-2]*[0-9]+[0-9]+)\\.([0-2]*[0-9]+[0-9]+))$
+	pattern := "((?:(?:25[0-5]|2[0-4]\\d|((1\\d{2})|([1-9]?\\d)))\\.){3}(?:25[0-5]|2[0-4]\\d|((1\\d{2})|([1-9]?\\d))))"
 	b, err := regexp.MatchString(pattern, ip_addr)
 	if err != nil {
 		fmt.Println("match string :", err)
@@ -874,6 +943,15 @@ func GetBody(p Param) ([]byte, string, error) {
 		url = "https://way.jd.com/jisuapi/get?channel=" + p.news_s + "&num=" + strconv.Itoa(num) + "&start=" + start + "&appkey=" + acc_key
 	} else if p.ip_addr != "" {
 		url = "http://ip.taobao.com/service/getIpInfo.php?ip=" + p.ip_addr
+	} else if p.unixTime != "" {
+		url = "http://japi.juhe.cn/joke/content/list.from?sort=desc" + "&page=" + page_n + "&pagesize=" + strconv.Itoa(topic_num) + "&time=" + p.unixTime + "&key=" + app_key
+	} else if p.con_fun != "" {
+		if fun_bool != "" {
+			sInt, _ := strconv.Atoi(page_n)
+			sInt += 1
+			page_n = strconv.Itoa(sInt)
+		}
+		url = "http://japi.juhe.cn/joke/content/list.from?sort=desc" + "&page=" + page_n + "&pagesize=" + strconv.Itoa(topic_num) + "&time=" + unix_time + "&key=" + app_key
 	}
 	r, err := http.Get(url)
 	if err != nil {
@@ -1193,7 +1271,7 @@ func UnmarJson(body []byte, num, str string) {
 		}
 		c_b := ScanContinueStr()
 		pa := Param{con_new: c_b, news_s: new_type}
-		if c_b == "y" {
+		if c_b == "y" || c_b == "Y" {
 			con_b = c_b
 			body, w, _ := GetBody(pa)
 			UnmarJson(body, num, w)
@@ -1248,7 +1326,7 @@ func UnmarJson(body []byte, num, str string) {
 
 			b := ScanContinueStr()
 			p := Param{con_catch: b}
-			if b == "y" {
+			if b == "y" || b == "Y" {
 				con_bool = b
 				body, s, _ := GetBody(p)
 				UnmarJson(body, num, s)
@@ -1277,6 +1355,34 @@ func UnmarJson(body []byte, num, str string) {
 		logger.Printf("\t--- > 区/州(%v/%v)： %v / %v \n", ip.AreaId, ip.RegionId, ip.Area, ip.Region)
 		logger.Printf("\t--- > 城市(%v)： %v \n", ip.CityId, ip.City)
 		logger.Printf("\t--- > 网络服务提供者(%v)： %v \n", ip.IspId, ip.Isp)
+	case "8":
+		logFile := WriteInit()
+		logger := log.New(logFile, "\r\n", log.Ldate|log.Ltime|log.Lshortfile)
+		defer logFile.Close()
+		funRe := new(FunReturn)
+		err := json.Unmarshal(body, funRe)
+		if err != nil {
+			fmt.Println("接口返回信息解析出错!")
+		}
+		datas := funRe.Result.FunData
+		for _, d := range datas {
+			fmt.Printf("\t--- > 时间： %v \n", d.UpdateTime)
+			fmt.Printf("\t--- > 内容： %v \n", d.Content)
+			fmt.Println(" ──────────────────────── ")
+			logger.Println(" ──────────────────────── ")
+			logger.Printf("\t--- > 时间： %v \n", d.UpdateTime)
+			logger.Printf("\t--- > 内容： %v \n", d.Content)
+		}
+		ab := ScanContinueStr()
+		p := Param{con_fun:ab}
+		if ab == "y" || ab == "Y" {
+			fun_bool = ab
+			body, _, _ := GetBody(p)
+			UnmarJson(body, num, "")
+		} else {
+			fun_bool = ""
+			MFrm()
+		}
 	}
 }
 
@@ -1308,6 +1414,8 @@ func ErrPrint(code string) {
 		fmt.Println("该数据只允许企业用户调用")
 	case "10090":
 		fmt.Println("文件大小超限，请上传小于1M的文件")
+	case "209502":
+		fmt.Println("	page、pagesize必须为int类型,time为10位时间戳")
 	default:
 		fmt.Println("未知错误，请联系作者 lightsylvanus@foxmail.com")
 	}
