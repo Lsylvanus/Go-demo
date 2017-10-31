@@ -1,0 +1,16 @@
+<seelog>
+    <outputs formatid="main">
+        <filter levels="info,debug,critical,error">
+            <console />
+        </filter>
+        <filter levels="info,debug">
+            <rollingfile type="size" filename="common.log" maxsize="102400" maxrolls="5"/>
+        </filter>
+        <filter levels="error,critical">
+            <rollingfile type="size" filename="error.log" maxsize="102400" maxrolls="5"/>
+        </filter>
+    </outputs>
+    <formats>
+        <format id="main" format="%Date(2006-01-02 15:04:05.999999) [%LEV] [%File.%Line] [%Func] %Msg%n"/>
+    </formats>
+</seelog>

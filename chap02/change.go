@@ -116,6 +116,14 @@ func main() {
 		}
 	}
 	fmt.Println("finished.")
+
+	vul := "vultr_3"
+	arr := strings.Split(vul, "_")
+	for _, v := range arr {
+		if v != "vultr" {
+			fmt.Println(v)
+		}
+	}
 }
 
 func RenameFile(oldName, newName string) error {

@@ -15,6 +15,7 @@ import (
 	"net"
 	"time"
 	"regexp"
+	"Go-demo/logs"
 )
 
 var start string = "0"
@@ -1475,4 +1476,7 @@ func getFileName() string {
 
 func main() {
 	MFrm()
+	logs.LogsInit()
+
+
 }
